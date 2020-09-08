@@ -141,9 +141,9 @@ tor_lzma_state_size_precalc(int compress, compression_level_t level)
   uint64_t memory_usage;
 
   if (compress)
-    memory_usage = lzma_easy_encoder_memusage(memory_level(level));
+    memory_usage = bcc_lzma_easy_encoder_memusage(memory_level(level));
   else
-    memory_usage = lzma_easy_decoder_memusage(memory_level(level));
+    memory_usage = bcc_lzma_easy_decoder_memusage(memory_level(level));
 
   if (memory_usage == UINT64_MAX) {
     // LCOV_EXCL_START
@@ -190,9 +190,9 @@ tor_lzma_compress_new(int compress,
   result->allocation = tor_lzma_state_size_precalc(compress, level);
 
   if (compress) {
-    lzma_lzma_preset(&stream_options, memory_level(level));
+    bcc_lzma_lzma_preset(&stream_options, memory_level(level));
 
-    retval = lzma_alone_encoder(&result->stream, &stream_options);
+    retval = bcc_lzma_alone_encoder(&result->stream, &stream_options);
 
     if (retval != LZMA_OK) {
       // LCOV_EXCL_START
@@ -202,7 +202,7 @@ tor_lzma_compress_new(int compress,
       // LCOV_EXCL_STOP
     }
   } else {
-    retval = lzma_alone_decoder(&result->stream, MEMORY_LIMIT);
+    retval = bcc_lzma_alone_decoder(&result->stream, MEMORY_LIMIT);
 
     if (retval != LZMA_OK) {
       // LCOV_EXCL_START
@@ -262,7 +262,7 @@ tor_lzma_compress_process(tor_lzma_compress_state_t *state,
 
   action = finish ? LZMA_FINISH : LZMA_RUN;
 
-  retval = lzma_code(&state->stream, action);
+  retval = bcc_lzma_code(&state->stream, action);
 
   state->input_so_far += state->stream.next_in - ((unsigned char *)*in);
   state->output_so_far += state->stream.next_out - ((unsigned char *)*out);
@@ -333,7 +333,7 @@ tor_lzma_compress_free_(tor_lzma_compress_state_t *state)
   atomic_counter_sub(&total_lzma_allocation, state->allocation);
 
 #ifdef HAVE_LZMA
-  lzma_end(&state->stream);
+  bcc_lzma_end(&state->stream);
 #endif
 
   tor_free(state);
