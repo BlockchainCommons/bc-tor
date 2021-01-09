@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Tor Project, Inc. */
+/* Copyright (c) 2012-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -20,7 +20,7 @@
 #include "core/or/or.h"
 #include "core/mainloop/connection.h"
 #include "core/or/connection_or.h"
-#include "feature/control/control.h"
+#include "feature/control/control_events.h"
 #include "app/config/config.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "lib/crypt_ops/crypto_util.h"
@@ -494,6 +494,10 @@ connection_ext_or_handle_cmd_useraddr(connection_t *conn,
   }
   conn->address = tor_addr_to_str_dup(&addr);
 
+  /* Now that we know the address, we don't have to manually override rate
+   * limiting. */
+  conn->always_rate_limit_as_remote = 0;
+
   return 0;
 }
 
@@ -602,7 +606,7 @@ connection_ext_or_process_inbuf(or_connection_t *or_conn)
                                              command->body, command->len) < 0)
         goto err;
     } else {
-      log_notice(LD_NET,"Got Extended ORPort command we don't regognize (%u).",
+      log_notice(LD_NET,"Got Extended ORPort command we don't recognize (%u).",
                  command->cmd);
     }
 
@@ -652,6 +656,77 @@ connection_ext_or_start_auth(or_connection_t *or_conn)
   return 0;
 }
 
+/** Global map between Extended ORPort identifiers and OR
+ *  connections. */
+static digestmap_t *orconn_ext_or_id_map = NULL;
+
+/** Remove the Extended ORPort identifier of <b>conn</b> from the
+ *  global identifier list. Also, clear the identifier from the
+ *  connection itself. */
+void
+connection_or_remove_from_ext_or_id_map(or_connection_t *conn)
+{
+  or_connection_t *tmp;
+  if (!orconn_ext_or_id_map)
+    return;
+  if (!conn->ext_or_conn_id)
+    return;
+
+  tmp = digestmap_remove(orconn_ext_or_id_map, conn->ext_or_conn_id);
+  if (!tor_digest_is_zero(conn->ext_or_conn_id))
+    tor_assert(tmp == conn);
+
+  memset(conn->ext_or_conn_id, 0, EXT_OR_CONN_ID_LEN);
+}
+
+#ifdef TOR_UNIT_TESTS
+/** Return the connection whose ext_or_id is <b>id</b>. Return NULL if no such
+ * connection is found. */
+or_connection_t *
+connection_or_get_by_ext_or_id(const char *id)
+{
+  if (!orconn_ext_or_id_map)
+    return NULL;
+  return digestmap_get(orconn_ext_or_id_map, id);
+}
+#endif /* defined(TOR_UNIT_TESTS) */
+
+/** Deallocate the global Extended ORPort identifier list */
+void
+connection_or_clear_ext_or_id_map(void)
+{
+  digestmap_free(orconn_ext_or_id_map, NULL);
+  orconn_ext_or_id_map = NULL;
+}
+
+/** Creates an Extended ORPort identifier for <b>conn</b> and deposits
+ *  it into the global list of identifiers. */
+void
+connection_or_set_ext_or_identifier(or_connection_t *conn)
+{
+  char random_id[EXT_OR_CONN_ID_LEN];
+  or_connection_t *tmp;
+
+  if (!orconn_ext_or_id_map)
+    orconn_ext_or_id_map = digestmap_new();
+
+  /* Remove any previous identifiers: */
+  if (conn->ext_or_conn_id && !tor_digest_is_zero(conn->ext_or_conn_id))
+      connection_or_remove_from_ext_or_id_map(conn);
+
+  do {
+    crypto_rand(random_id, sizeof(random_id));
+  } while (digestmap_get(orconn_ext_or_id_map, random_id));
+
+  if (!conn->ext_or_conn_id)
+    conn->ext_or_conn_id = tor_malloc_zero(EXT_OR_CONN_ID_LEN);
+
+  memcpy(conn->ext_or_conn_id, random_id, EXT_OR_CONN_ID_LEN);
+
+  tmp = digestmap_set(orconn_ext_or_id_map, random_id, conn);
+  tor_assert(!tmp);
+}
+
 /** Free any leftover allocated memory of the ext_orport.c subsystem. */
 void
 ext_orport_free_all(void)
@@ -659,4 +734,3 @@ ext_orport_free_all(void)
   if (ext_or_auth_cookie) /* Free the auth cookie */
     tor_free(ext_or_auth_cookie);
 }
-

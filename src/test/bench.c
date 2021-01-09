@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -22,7 +22,7 @@
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
 #include <openssl/obj_mac.h>
-#endif
+#endif /* defined(ENABLE_OPENSSL) */
 
 #include "core/or/circuitlist.h"
 #include "app/config/config.h"
@@ -701,7 +701,7 @@ bench_ecdh_p224(void)
 {
   bench_ecdh_impl(NID_secp224r1, "P-224");
 }
-#endif
+#endif /* defined(ENABLE_OPENSSL) */
 
 static void
 bench_md_parse(void)

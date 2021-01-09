@@ -1,11 +1,12 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define DIRVOTE_PRIVATE
 #include "core/or/or.h"
 #include "app/config/config.h"
+#include "app/config/resolve_addr.h"
 #include "core/or/policies.h"
 #include "core/or/protover.h"
 #include "core/or/tor_version_st.h"
@@ -36,15 +37,17 @@
 #include "feature/stats/rephist.h"
 #include "feature/client/entrynodes.h" /* needed for guardfraction methods */
 #include "feature/nodelist/torcert.h"
-#include "feature/dircommon/voting_schedule.h"
+#include "feature/dirauth/voting_schedule.h"
 
 #include "feature/dirauth/dirvote.h"
 #include "feature/dirauth/authmode.h"
 #include "feature/dirauth/shared_random_state.h"
+#include "feature/dirauth/dirauth_sys.h"
 
 #include "feature/nodelist/authority_cert_st.h"
 #include "feature/dircache/cached_dir_st.h"
 #include "feature/dirclient/dir_server_st.h"
+#include "feature/dirauth/dirauth_options_st.h"
 #include "feature/nodelist/document_signature_st.h"
 #include "feature/nodelist/microdesc_st.h"
 #include "feature/nodelist/networkstatus_st.h"
@@ -220,7 +223,6 @@ format_networkstatus_vote(crypto_pk_t *private_signing_key,
                           networkstatus_t *v3_ns)
 {
   smartlist_t *chunks = smartlist_new();
-  char *packages = NULL;
   char fingerprint[FINGERPRINT_LEN+1];
   char digest[DIGEST_LEN];
   uint32_t addr;
@@ -245,19 +247,6 @@ format_networkstatus_vote(crypto_pk_t *private_signing_key,
   server_versions_line = format_line_if_present("server-versions",
                                                 v3_ns->server_versions);
   protocols_lines = format_protocols_lines_for_vote(v3_ns);
-
-  if (v3_ns->package_lines) {
-    smartlist_t *tmp = smartlist_new();
-    SMARTLIST_FOREACH(v3_ns->package_lines, const char *, p,
-                      if (validate_recommended_package_line(p))
-                        smartlist_add_asprintf(tmp, "package %s\n", p));
-    smartlist_sort_strings(tmp);
-    packages = smartlist_join_strings(tmp, "", 0, NULL);
-    SMARTLIST_FOREACH(tmp, char *, cp, tor_free(cp));
-    smartlist_free(tmp);
-  } else {
-    packages = tor_strdup("");
-  }
 
     /* Get shared random commitments/reveals line(s). */
   shared_random_vote_str = sr_get_string_for_vote();
@@ -333,45 +322,47 @@ format_networkstatus_vote(crypto_pk_t *private_signing_key,
       tor_free(digest_algo_b64_digest_bw_file);
     }
 
-    smartlist_add_asprintf(chunks,
-                 "network-status-version 3\n"
-                 "vote-status %s\n"
-                 "consensus-methods %s\n"
-                 "published %s\n"
-                 "valid-after %s\n"
-                 "fresh-until %s\n"
-                 "valid-until %s\n"
-                 "voting-delay %d %d\n"
-                 "%s%s" /* versions */
-                 "%s" /* protocols */
-                 "%s" /* packages */
-                 "known-flags %s\n"
-                 "flag-thresholds %s\n"
-                 "params %s\n"
-                 "%s" /* bandwidth file headers */
-                 "%s" /* bandwidth file digest */
-                 "dir-source %s %s %s %s %d %d\n"
-                 "contact %s\n"
-                 "%s" /* shared randomness information */
-                 ,
-                 v3_ns->type == NS_TYPE_VOTE ? "vote" : "opinion",
-                 methods,
-                 published, va, fu, vu,
-                 v3_ns->vote_seconds, v3_ns->dist_seconds,
-                 client_versions_line,
-                 server_versions_line,
-                 protocols_lines,
-                 packages,
-                 flags,
-                 flag_thresholds,
-                 params,
-                 bw_headers_line ? bw_headers_line : "",
-                 bw_file_digest ? bw_file_digest: "",
-                 voter->nickname, fingerprint, voter->address,
-                 fmt_addr32(addr), voter->dir_port, voter->or_port,
-                 voter->contact,
-                 shared_random_vote_str ?
-                           shared_random_vote_str : "");
+    const char *ip_str = fmt_addr32(addr);
+
+    if (ip_str[0]) {
+      smartlist_add_asprintf(chunks,
+                   "network-status-version 3\n"
+                   "vote-status %s\n"
+                   "consensus-methods %s\n"
+                   "published %s\n"
+                   "valid-after %s\n"
+                   "fresh-until %s\n"
+                   "valid-until %s\n"
+                   "voting-delay %d %d\n"
+                   "%s%s" /* versions */
+                   "%s" /* protocols */
+                   "known-flags %s\n"
+                   "flag-thresholds %s\n"
+                   "params %s\n"
+                   "%s" /* bandwidth file headers */
+                   "%s" /* bandwidth file digest */
+                   "dir-source %s %s %s %s %d %d\n"
+                   "contact %s\n"
+                   "%s" /* shared randomness information */
+                   ,
+                   v3_ns->type == NS_TYPE_VOTE ? "vote" : "opinion",
+                   methods,
+                   published, va, fu, vu,
+                   v3_ns->vote_seconds, v3_ns->dist_seconds,
+                   client_versions_line,
+                   server_versions_line,
+                   protocols_lines,
+                   flags,
+                   flag_thresholds,
+                   params,
+                   bw_headers_line ? bw_headers_line : "",
+                   bw_file_digest ? bw_file_digest: "",
+                   voter->nickname, fingerprint, voter->address,
+                   ip_str, voter->dir_port, voter->or_port,
+                   voter->contact,
+                   shared_random_vote_str ?
+                             shared_random_vote_str : "");
+    }
 
     tor_free(params);
     tor_free(flags);
@@ -380,6 +371,9 @@ format_networkstatus_vote(crypto_pk_t *private_signing_key,
     tor_free(shared_random_vote_str);
     tor_free(bw_headers_line);
     tor_free(bw_file_digest);
+
+    if (ip_str[0] == '\0')
+      goto err;
 
     if (!tor_digest_is_zero(voter->legacy_id_digest)) {
       char fpbuf[HEX_DIGEST_LEN+1];
@@ -398,7 +392,6 @@ format_networkstatus_vote(crypto_pk_t *private_signing_key,
     rsf = routerstatus_format_entry(&vrs->status,
                                     vrs->version, vrs->protocols,
                                     NS_V3_VOTE,
-                                    ROUTERSTATUS_FORMAT_NO_CONSENSUS_METHOD,
                                     vrs);
     if (rsf)
       smartlist_add(chunks, rsf);
@@ -460,7 +453,6 @@ format_networkstatus_vote(crypto_pk_t *private_signing_key,
   tor_free(client_versions_line);
   tor_free(server_versions_line);
   tor_free(protocols_lines);
-  tor_free(packages);
 
   SMARTLIST_FOREACH(chunks, char *, cp, tor_free(cp));
   smartlist_free(chunks);
@@ -902,7 +894,7 @@ dirvote_get_intermediate_param_value(const smartlist_t *param_list,
       int ok;
       value = (int32_t)
         tor_parse_long(integer_str, 10, INT32_MIN, INT32_MAX, &ok, NULL);
-      if (BUG(! ok))
+      if (BUG(!ok))
         return default_val;
       ++n_found;
     }
@@ -1555,14 +1547,11 @@ networkstatus_compute_consensus(smartlist_t *votes,
     consensus_method = MAX_SUPPORTED_CONSENSUS_METHOD;
   }
 
-  if (consensus_method >= MIN_METHOD_FOR_INIT_BW_WEIGHTS_ONE) {
+  {
     /* It's smarter to initialize these weights to 1, so that later on,
      * we can't accidentally divide by zero. */
     G = M = E = D = 1;
     T = 4;
-  } else {
-    /* ...but originally, they were set to zero. */
-    G = M = E = D = T = 0;
   }
 
   /* Compute medians of time-related things, and figure out how many
@@ -2263,7 +2252,7 @@ networkstatus_compute_consensus(smartlist_t *votes,
         /* Okay!! Now we can write the descriptor... */
         /*     First line goes into "buf". */
         buf = routerstatus_format_entry(&rs_out, NULL, NULL,
-                                        rs_format, consensus_method, NULL);
+                                        rs_format, NULL);
         if (buf)
           smartlist_add(chunks, buf);
       }
@@ -2283,8 +2272,7 @@ networkstatus_compute_consensus(smartlist_t *votes,
         smartlist_add_strdup(chunks, chosen_version);
       }
       smartlist_add_strdup(chunks, "\n");
-      if (chosen_protocol_list &&
-          consensus_method >= MIN_METHOD_FOR_RS_PROTOCOLS) {
+      if (chosen_protocol_list) {
         smartlist_add_asprintf(chunks, "pr %s\n", chosen_protocol_list);
       }
       /*     Now the weight line. */
@@ -2547,9 +2535,12 @@ compute_consensus_package_lines(smartlist_t *votes)
  * any new signatures in <b>src_voter_list</b> that should be added to
  * <b>target</b>. (A signature should be added if we have no signature for that
  * voter in <b>target</b> yet, or if we have no verifiable signature and the
- * new signature is verifiable.)  Return the number of signatures added or
- * changed, or -1 if the document signed by <b>sigs</b> isn't the same
- * document as <b>target</b>. */
+ * new signature is verifiable.)
+ *
+ * Return the number of signatures added or changed, or -1 if the document
+ * signatures are invalid. Sets *<b>msg_out</b> to a string constant
+ * describing the signature status.
+ */
 STATIC int
 networkstatus_add_detached_signatures(networkstatus_t *target,
                                       ns_detached_signatures_t *sigs,
@@ -2598,7 +2589,7 @@ networkstatus_add_detached_signatures(networkstatus_t *target,
       return -1;
     }
     for (alg = DIGEST_SHA1; alg < N_COMMON_DIGEST_ALGORITHMS; ++alg) {
-      if (!tor_mem_is_zero(digests->d[alg], DIGEST256_LEN)) {
+      if (!fast_mem_is_zero(digests->d[alg], DIGEST256_LEN)) {
         if (fast_memeq(target->digests.d[alg], digests->d[alg],
                        DIGEST256_LEN)) {
           ++n_matches;
@@ -2794,7 +2785,7 @@ networkstatus_get_detached_signatures(smartlist_t *consensuses)
       char d[HEX_DIGEST256_LEN+1];
       const char *alg_name =
         crypto_digest_algorithm_get_name(alg);
-      if (tor_mem_is_zero(ns->digests.d[alg], DIGEST256_LEN))
+      if (fast_mem_is_zero(ns->digests.d[alg], DIGEST256_LEN))
         continue;
       base16_encode(d, sizeof(d), ns->digests.d[alg], DIGEST256_LEN);
       smartlist_add_asprintf(elements, "additional-digest %s %s %s\n",
@@ -2870,7 +2861,7 @@ dirvote_act(const or_options_t *options, time_t now)
                "Mine is %s.",
                keys, hex_str(c->cache_info.identity_digest, DIGEST_LEN));
     tor_free(keys);
-    voting_schedule_recalculate_timing(options, now);
+    dirauth_sched_recalculate_timing(options, now);
   }
 
 #define IF_TIME_FOR_NEXT_ACTION(when_field, done_field) \
@@ -2916,7 +2907,7 @@ dirvote_act(const or_options_t *options, time_t now)
                 networkstatus_get_latest_consensus_by_flavor(FLAV_NS));
     /* XXXX We will want to try again later if we haven't got enough
      * signatures yet.  Implement this if it turns out to ever happen. */
-    voting_schedule_recalculate_timing(options, now);
+    dirauth_sched_recalculate_timing(options, now);
     return voting_schedule.voting_starts;
   } ENDIF
 
@@ -2983,7 +2974,7 @@ dirvote_perform_vote(void)
   if (!contents)
     return -1;
 
-  pending_vote = dirvote_add_vote(contents, &msg, &status);
+  pending_vote = dirvote_add_vote(contents, 0, &msg, &status);
   tor_free(contents);
   if (!pending_vote) {
     log_warn(LD_DIR, "Couldn't store my own vote! (I told myself, '%s'.)",
@@ -3139,13 +3130,45 @@ list_v3_auth_ids(void)
   return keys;
 }
 
+/* Check the voter information <b>vi</b>, and  assert that at least one
+ * signature is good. Asserts on failure. */
+static void
+assert_any_sig_good(const networkstatus_voter_info_t *vi)
+{
+  int any_sig_good = 0;
+  SMARTLIST_FOREACH(vi->sigs, document_signature_t *, sig,
+                    if (sig->good_signature)
+                      any_sig_good = 1);
+  tor_assert(any_sig_good);
+}
+
+/* Add <b>cert</b> to our list of known authority certificates. */
+static void
+add_new_cert_if_needed(const struct authority_cert_t *cert)
+{
+  tor_assert(cert);
+  if (!authority_cert_get_by_digests(cert->cache_info.identity_digest,
+                                     cert->signing_key_digest)) {
+    /* Hey, it's a new cert! */
+    trusted_dirs_load_certs_from_string(
+                               cert->cache_info.signed_descriptor_body,
+                               TRUSTED_DIRS_CERTS_SRC_FROM_VOTE, 1 /*flush*/,
+                               NULL);
+    if (!authority_cert_get_by_digests(cert->cache_info.identity_digest,
+                                       cert->signing_key_digest)) {
+      log_warn(LD_BUG, "We added a cert, but still couldn't find it.");
+    }
+  }
+}
+
 /** Called when we have received a networkstatus vote in <b>vote_body</b>.
  * Parse and validate it, and on success store it as a pending vote (which we
  * then return).  Return NULL on failure.  Sets *<b>msg_out</b> and
  * *<b>status_out</b> to an HTTP response and status code.  (V3 authority
  * only) */
 pending_vote_t *
-dirvote_add_vote(const char *vote_body, const char **msg_out, int *status_out)
+dirvote_add_vote(const char *vote_body, time_t time_posted,
+                 const char **msg_out, int *status_out)
 {
   networkstatus_t *vote;
   networkstatus_voter_info_t *vi;
@@ -3176,13 +3199,7 @@ dirvote_add_vote(const char *vote_body, const char **msg_out, int *status_out)
   }
   tor_assert(smartlist_len(vote->voters) == 1);
   vi = get_voter(vote);
-  {
-    int any_sig_good = 0;
-    SMARTLIST_FOREACH(vi->sigs, document_signature_t *, sig,
-                      if (sig->good_signature)
-                        any_sig_good = 1);
-    tor_assert(any_sig_good);
-  }
+  assert_any_sig_good(vi);
   ds = trusteddirserver_get_by_v3_auth_digest(vi->identity_digest);
   if (!ds) {
     char *keys = list_v3_auth_ids();
@@ -3195,19 +3212,7 @@ dirvote_add_vote(const char *vote_body, const char **msg_out, int *status_out)
     *msg_out = "Vote not from a recognized v3 authority";
     goto err;
   }
-  tor_assert(vote->cert);
-  if (!authority_cert_get_by_digests(vote->cert->cache_info.identity_digest,
-                                     vote->cert->signing_key_digest)) {
-    /* Hey, it's a new cert! */
-    trusted_dirs_load_certs_from_string(
-                               vote->cert->cache_info.signed_descriptor_body,
-                               TRUSTED_DIRS_CERTS_SRC_FROM_VOTE, 1 /*flush*/,
-                               NULL);
-    if (!authority_cert_get_by_digests(vote->cert->cache_info.identity_digest,
-                                       vote->cert->signing_key_digest)) {
-      log_warn(LD_BUG, "We added a cert, but still couldn't find it.");
-    }
-  }
+  add_new_cert_if_needed(vote->cert);
 
   /* Is it for the right period? */
   if (vote->valid_after != voting_schedule.interval_starts) {
@@ -3217,6 +3222,23 @@ dirvote_add_vote(const char *vote_body, const char **msg_out, int *status_out)
     log_warn(LD_DIR, "Rejecting vote from %s with valid-after time of %s; "
              "we were expecting %s", vi->address, tbuf1, tbuf2);
     *msg_out = "Bad valid-after time";
+    goto err;
+  }
+
+  /* Check if we received it, as a post, after the cutoff when we
+   * start asking other dir auths for it. If we do, the best plan
+   * is to discard it, because using it greatly increases the chances
+   * of a split vote for this round (some dir auths got it in time,
+   * some didn't). */
+  if (time_posted && time_posted > voting_schedule.fetch_missing_votes) {
+    char tbuf1[ISO_TIME_LEN+1], tbuf2[ISO_TIME_LEN+1];
+    format_iso_time(tbuf1, time_posted);
+    format_iso_time(tbuf2, voting_schedule.fetch_missing_votes);
+    log_warn(LD_DIR, "Rejecting posted vote from %s received at %s; "
+             "our cutoff for received votes is %s. Check your clock, "
+             "CPU load, and network load. Also check the authority that "
+             "posted the vote.", vi->address, tbuf1, tbuf2);
+    *msg_out = "Posted vote received too late, would be dangerous to count it";
     goto err;
   }
 
@@ -3584,6 +3606,14 @@ dirvote_add_signatures_to_pending_consensus(
   return r;
 }
 
+/** Helper: we just got the <b>detached_signatures_body</b> sent to us as
+ * signatures on the currently pending consensus.  Add them to the pending
+ * consensus (if we have one).
+ *
+ * Set *<b>msg</b> to a string constant describing the status, regardless of
+ * success or failure.
+ *
+ * Return negative on failure, nonnegative on success. */
 static int
 dirvote_add_signatures_to_all_pending_consensuses(
                        const char *detached_signatures_body,
@@ -3646,7 +3676,12 @@ dirvote_add_signatures_to_all_pending_consensuses(
 /** Helper: we just got the <b>detached_signatures_body</b> sent to us as
  * signatures on the currently pending consensus.  Add them to the pending
  * consensus (if we have one); otherwise queue them until we have a
- * consensus.  Return negative on failure, nonnegative on success. */
+ * consensus.
+ *
+ * Set *<b>msg</b> to a string constant describing the status, regardless of
+ * success or failure.
+ *
+ * Return negative on failure, nonnegative on success. */
 int
 dirvote_add_signatures(const char *detached_signatures_body,
                        const char *source,
@@ -3820,13 +3855,6 @@ dirvote_create_microdescriptor(const routerinfo_t *ri, int consensus_method)
     smartlist_add_asprintf(chunks, "ntor-onion-key %s", kbuf);
   }
 
-  /* We originally put a lines in the micrdescriptors, but then we worked out
-   * that we needed them in the microdesc consensus. See #20916. */
-  if (consensus_method < MIN_METHOD_FOR_NO_A_LINES_IN_MICRODESC &&
-      !tor_addr_is_null(&ri->ipv6_addr) && ri->ipv6_orport)
-    smartlist_add_asprintf(chunks, "a %s\n",
-                           fmt_addrport(&ri->ipv6_addr, ri->ipv6_orport));
-
   if (family) {
     if (consensus_method < MIN_METHOD_FOR_CANONICAL_FAMILIES_IN_MICRODESCS) {
       smartlist_add_asprintf(chunks, "family %s\n", family);
@@ -3913,8 +3941,7 @@ dirvote_format_microdesc_vote_line(char *out_buf, size_t out_buf_len,
                                ",");
   tor_assert(microdesc_consensus_methods);
 
-  if (digest256_to_base64(d64, md->digest)<0)
-    goto out;
+  digest256_to_base64(d64, md->digest);
 
   if (tor_snprintf(out_buf, out_buf_len, "m %s sha256=%s\n",
                    microdesc_consensus_methods, d64)<0)
@@ -3933,8 +3960,7 @@ static const struct consensus_method_range_t {
   int low;
   int high;
 } microdesc_consensus_methods[] = {
-  {MIN_SUPPORTED_CONSENSUS_METHOD, MIN_METHOD_FOR_NO_A_LINES_IN_MICRODESC - 1},
-  {MIN_METHOD_FOR_NO_A_LINES_IN_MICRODESC,
+  {MIN_SUPPORTED_CONSENSUS_METHOD,
    MIN_METHOD_FOR_CANONICAL_FAMILIES_IN_MICRODESCS - 1},
   {MIN_METHOD_FOR_CANONICAL_FAMILIES_IN_MICRODESCS,
    MAX_SUPPORTED_CONSENSUS_METHOD},
@@ -4246,7 +4272,7 @@ compare_routerinfo_by_ip_and_bw_(const void **a, const void **b)
 static digestmap_t *
 get_possible_sybil_list(const smartlist_t *routers)
 {
-  const or_options_t *options = get_options();
+  const dirauth_options_t *options = dirauth_get_options();
   digestmap_t *omit_as_sybil;
   smartlist_t *routers_by_ip = smartlist_new();
   uint32_t last_addr;
@@ -4435,6 +4461,7 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
                                         authority_cert_t *cert)
 {
   const or_options_t *options = get_options();
+  const dirauth_options_t *d_options = dirauth_get_options();
   networkstatus_t *v3_out = NULL;
   uint32_t addr;
   char *hostname = NULL, *client_versions = NULL, *server_versions = NULL;
@@ -4442,7 +4469,7 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
   smartlist_t *routers, *routerstatuses;
   char identity_digest[DIGEST_LEN];
   char signing_key_digest[DIGEST_LEN];
-  int listbadexits = options->AuthDirListBadExits;
+  const int listbadexits = d_options->AuthDirListBadExits;
   routerlist_t *rl = router_get_routerlist();
   time_t now = time(NULL);
   time_t cutoff = now - ROUTER_MAX_AGE_TO_PUBLISH;
@@ -4474,11 +4501,16 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
     hostname = tor_dup_ip(addr);
   }
 
-  if (options->VersioningAuthoritativeDir) {
+  if (!hostname) {
+    log_err(LD_BUG, "Failed to determine hostname AND duplicate address");
+    return NULL;
+  }
+
+  if (d_options->VersioningAuthoritativeDirectory) {
     client_versions =
-      format_recommended_version_list(options->RecommendedClientVersions, 0);
+      format_recommended_version_list(d_options->RecommendedClientVersions, 0);
     server_versions =
-      format_recommended_version_list(options->RecommendedServerVersions, 0);
+      format_recommended_version_list(d_options->RecommendedServerVersions, 0);
   }
 
   contact = get_options()->ContactInfo;
@@ -4545,8 +4577,8 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
 
       vrs = tor_malloc_zero(sizeof(vote_routerstatus_t));
       rs = &vrs->status;
-      set_routerstatus_from_routerinfo(rs, node, ri, now,
-                                       listbadexits);
+      dirauth_set_routerstatus_from_routerinfo(rs, node, ri, now,
+                                               listbadexits);
 
       if (ri->cache_info.signing_key_cert) {
         memcpy(vrs->ed25519_id,
@@ -4625,7 +4657,7 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
     else
       last_consensus_interval = options->TestingV3AuthInitialVotingInterval;
     v3_out->valid_after =
-      voting_schedule_get_start_of_next_interval(now,
+      voting_sched_get_start_of_interval_after(now,
                                    (int)last_consensus_interval,
                                    options->TestingV3AuthVotingStartOffset);
     format_iso_time(tbuf, v3_out->valid_after);
@@ -4647,17 +4679,14 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
 
   /* These are hardwired, to avoid disaster. */
   v3_out->recommended_relay_protocols =
-    tor_strdup("Cons=1-2 Desc=1-2 DirCache=1 HSDir=1 HSIntro=3 HSRend=1 "
-               "Link=4 Microdesc=1-2 Relay=2");
+    tor_strdup(DIRVOTE_RECOMMEND_RELAY_PROTO);
   v3_out->recommended_client_protocols =
-    tor_strdup("Cons=1-2 Desc=1-2 DirCache=1 HSDir=1 HSIntro=3 HSRend=1 "
-               "Link=4 Microdesc=1-2 Relay=2");
-  v3_out->required_client_protocols =
-    tor_strdup("Cons=1-2 Desc=1-2 DirCache=1 HSDir=1 HSIntro=3 HSRend=1 "
-               "Link=4 Microdesc=1-2 Relay=2");
+    tor_strdup(DIRVOTE_RECOMMEND_CLIENT_PROTO);
+
   v3_out->required_relay_protocols =
-    tor_strdup("Cons=1 Desc=1 DirCache=1 HSDir=1 HSIntro=3 HSRend=1 "
-               "Link=3-4 Microdesc=1 Relay=1-2");
+    tor_strdup(DIRVOTE_REQUIRE_RELAY_PROTO);
+  v3_out->required_client_protocols =
+    tor_strdup(DIRVOTE_REQUIRE_CLIENT_PROTO);
 
   /* We are not allowed to vote to require anything we don't have. */
   tor_assert(protover_all_supported(v3_out->required_relay_protocols, NULL));
@@ -4669,15 +4698,6 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
   tor_assert_nonfatal(protover_all_supported(
                                v3_out->recommended_client_protocols, NULL));
 
-  v3_out->package_lines = smartlist_new();
-  {
-    config_line_t *cl;
-    for (cl = get_options()->RecommendedPackages; cl; cl = cl->next) {
-      if (validate_recommended_package_line(cl->value))
-        smartlist_add_strdup(v3_out->package_lines, cl->value);
-    }
-  }
-
   v3_out->known_flags = smartlist_new();
   smartlist_split_string(v3_out->known_flags,
                          DIRVOTE_UNIVERSAL_FLAGS,
@@ -4688,10 +4708,13 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
     smartlist_add_strdup(v3_out->known_flags, "BadExit");
   smartlist_sort_strings(v3_out->known_flags);
 
-  if (options->ConsensusParams) {
+  if (d_options->ConsensusParams) {
+    config_line_t *paramline = d_options->ConsensusParams;
     v3_out->net_params = smartlist_new();
-    smartlist_split_string(v3_out->net_params,
-                           options->ConsensusParams, NULL, 0, 0);
+    for ( ; paramline; paramline = paramline->next) {
+      smartlist_split_string(v3_out->net_params,
+                             paramline->value, NULL, 0, 0);
+    }
     smartlist_sort_strings(v3_out->net_params);
   }
   v3_out->bw_file_headers = bw_file_headers;

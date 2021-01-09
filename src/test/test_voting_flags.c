@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Tor Project, Inc. */
+/* Copyright (c) 2018-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -8,6 +8,7 @@
 #include "core/or/or.h"
 
 #include "feature/dirauth/voteflags.h"
+#include "feature/dirauth/dirauth_options_st.h"
 #include "feature/nodelist/node_st.h"
 #include "feature/nodelist/routerstatus_st.h"
 #include "feature/nodelist/routerinfo_st.h"
@@ -15,6 +16,7 @@
 #include "app/config/config.h"
 
 #include "test/test.h"
+#include "test/opts_test_helpers.h"
 
 typedef struct {
   time_t now;
@@ -60,7 +62,7 @@ check_result(flag_vote_test_cfg_t *c)
   bool result = false;
   routerstatus_t rs;
   memset(&rs, 0, sizeof(rs));
-  set_routerstatus_from_routerinfo(&rs, &c->node, &c->ri, c->now, 0);
+  dirauth_set_routerstatus_from_routerinfo(&rs, &c->node, &c->ri, c->now, 0);
 
   tt_i64_op(rs.published_on, OP_EQ, c->expected.published_on);
   tt_str_op(rs.nickname, OP_EQ, c->expected.nickname);
@@ -119,7 +121,7 @@ test_voting_flags_ipv6(void *arg)
   if (!check_result(cfg))
     goto done;
 
-  get_options_mutable()->AuthDirHasIPv6Connectivity = 1;
+  get_dirauth_options(get_options_mutable())->AuthDirHasIPv6Connectivity = 1;
   // no change in expected results, since last_reachable6 won't be set.
   if (!check_result(cfg))
     goto done;

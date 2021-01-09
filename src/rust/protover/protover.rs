@@ -26,7 +26,7 @@ const FIRST_TOR_VERSION_TO_ADVERTISE_PROTOCOLS: &'static str = "0.2.9.3-alpha";
 /// before concluding that someone is trying to DoS us
 ///
 /// C_RUST_COUPLED: protover.c `MAX_PROTOCOLS_TO_EXPAND`
-const MAX_PROTOCOLS_TO_EXPAND: usize = (1 << 16);
+const MAX_PROTOCOLS_TO_EXPAND: usize = 1 << 16;
 
 /// The maximum size an `UnknownProtocol`'s name may be.
 pub(crate) const MAX_PROTOCOL_NAME_LENGTH: usize = 100;
@@ -47,6 +47,7 @@ pub enum Protocol {
     Microdesc,
     Relay,
     Padding,
+    FlowCtrl,
 }
 
 impl fmt::Display for Protocol {
@@ -75,6 +76,7 @@ impl FromStr for Protocol {
             "Microdesc" => Ok(Protocol::Microdesc),
             "Relay" => Ok(Protocol::Relay),
             "Padding" => Ok(Protocol::Padding),
+            "FlowCtrl" => Ok(Protocol::FlowCtrl),
             _ => Err(ProtoverError::UnknownProtocol),
         }
     }
@@ -159,28 +161,30 @@ pub(crate) fn get_supported_protocols_cstr() -> &'static CStr {
             "Cons=1-2 \
              Desc=1-2 \
              DirCache=1-2 \
+             FlowCtrl=1 \
              HSDir=1-2 \
              HSIntro=3-4 \
              HSRend=1-2 \
              Link=1-5 \
              LinkAuth=3 \
              Microdesc=1-2 \
-             Relay=1-2 \
-             Padding=1"
+             Padding=2 \
+             Relay=1-2"
         )
     } else {
         cstr!(
             "Cons=1-2 \
              Desc=1-2 \
              DirCache=1-2 \
+             FlowCtrl=1 \
              HSDir=1-2 \
              HSIntro=3-4 \
              HSRend=1-2 \
              Link=1-5 \
              LinkAuth=1,3 \
              Microdesc=1-2 \
-             Relay=1-2 \
-             Padding=1"
+             Padding=2 \
+             Relay=1-2"
         )
     }
 }
@@ -870,12 +874,12 @@ mod test {
 
     #[test]
     fn test_protoentry_from_str_allowed_number_of_versions() {
-        assert_protoentry_is_parseable!("Desc=1-4294967294");
+        assert_protoentry_is_parseable!("Desc=1-63");
     }
 
     #[test]
     fn test_protoentry_from_str_too_many_versions() {
-        assert_protoentry_is_unparseable!("Desc=1-4294967295");
+        assert_protoentry_is_unparseable!("Desc=1-64");
     }
 
     #[test]
@@ -914,10 +918,10 @@ mod test {
 
     #[test]
     fn test_protoentry_all_supported_unsupported_high_version() {
-        let protocols: UnvalidatedProtoEntry = "HSDir=12-100".parse().unwrap();
+        let protocols: UnvalidatedProtoEntry = "HSDir=12-60".parse().unwrap();
         let unsupported: Option<UnvalidatedProtoEntry> = protocols.all_supported();
         assert_eq!(true, unsupported.is_some());
-        assert_eq!("HSDir=12-100", &unsupported.unwrap().to_string());
+        assert_eq!("HSDir=12-60", &unsupported.unwrap().to_string());
     }
 
     #[test]
@@ -966,7 +970,7 @@ mod test {
             ProtoSet::from_str(&versions).unwrap().to_string()
         );
 
-        versions = "1-3,500";
+        versions = "1-3,50";
         assert_eq!(
             String::from(versions),
             ProtoSet::from_str(&versions).unwrap().to_string()

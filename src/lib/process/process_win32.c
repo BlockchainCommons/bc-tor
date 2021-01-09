@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -759,7 +759,7 @@ process_win32_cleanup_handle(process_win32_handle_t *handle)
                format_win32_error(error_code));
     }
   }
-#endif
+#endif /* 0 */
 
   /* Close our handle. */
   if (handle->pipe != INVALID_HANDLE_VALUE) {
@@ -1102,4 +1102,4 @@ tor_join_win_cmdline(const char *argv[])
   return joined_argv;
 }
 
-#endif /* ! defined(_WIN32). */
+#endif /* defined(_WIN32) */

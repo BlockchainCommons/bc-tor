@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -36,12 +36,14 @@
 #include "feature/nodelist/networkstatus_st.h"
 #include "feature/nodelist/networkstatus_voter_info_st.h"
 #include "feature/nodelist/vote_routerstatus_st.h"
+#include "feature/dirparse/authcert_members.h"
 
 #undef log
 #include <math.h>
 
 /** List of tokens recognized in the body part of v3 networkstatus
  * documents. */
+// clang-format off
 static token_rule_t rtrstatus_token_table[] = {
   T01("p",                   K_P,               CONCAT_ARGS, NO_OBJ ),
   T1( "r",                   K_R,                   GE(7),   NO_OBJ ),
@@ -55,8 +57,10 @@ static token_rule_t rtrstatus_token_table[] = {
   T0N("opt",                 K_OPT,             CONCAT_ARGS, OBJ_OK ),
   END_OF_TABLE
 };
+// clang-format on
 
 /** List of tokens recognized in V3 networkstatus votes. */
+// clang-format off
 static token_rule_t networkstatus_token_table[] = {
   T1_START("network-status-version", K_NETWORK_STATUS_VERSION,
                                                    GE(1),       NO_OBJ ),
@@ -84,7 +88,7 @@ static token_rule_t networkstatus_token_table[] = {
   T01("required-relay-protocols",    K_REQUIRED_RELAY_PROTOCOLS,
       CONCAT_ARGS, NO_OBJ ),
 
-#include "feature/dirparse/authcert_members.i"
+  AUTHCERT_MEMBERS,
 
   T0N("opt",                 K_OPT,             CONCAT_ARGS, OBJ_OK ),
   T1( "contact",             K_CONTACT,         CONCAT_ARGS, NO_OBJ ),
@@ -97,8 +101,10 @@ static token_rule_t networkstatus_token_table[] = {
 
   END_OF_TABLE
 };
+// clang-format on
 
 /** List of tokens recognized in V3 networkstatus consensuses. */
+// clang-format off
 static token_rule_t networkstatus_consensus_token_table[] = {
   T1_START("network-status-version", K_NETWORK_STATUS_VERSION,
                                                    GE(1),       NO_OBJ ),
@@ -135,14 +141,17 @@ static token_rule_t networkstatus_consensus_token_table[] = {
 
   END_OF_TABLE
 };
+// clang-format on
 
 /** List of tokens recognized in the footer of v1 directory footers. */
+// clang-format off
 static token_rule_t networkstatus_vote_footer_token_table[] = {
   T01("directory-footer",    K_DIRECTORY_FOOTER,    NO_ARGS,   NO_OBJ ),
   T01("bandwidth-weights",   K_BW_WEIGHTS,          ARGS,      NO_OBJ ),
   T(  "directory-signature", K_DIRECTORY_SIGNATURE, GE(2),     NEED_OBJ ),
   END_OF_TABLE
 };
+// clang-format on
 
 /** Try to find the start and end of the signed portion of a networkstatus
  * document in <b>s</b>. On success, set <b>start_out</b> to the first
@@ -1478,7 +1487,7 @@ networkstatus_parse_vote_from_string(const char *s,
     SMARTLIST_FOREACH_BEGIN(ns->routerstatus_list, vote_routerstatus_t *,
                             vrs) {
       if (! vrs->has_ed25519_listing ||
-          tor_mem_is_zero((const char *)vrs->ed25519_id, DIGEST256_LEN))
+          fast_mem_is_zero((const char *)vrs->ed25519_id, DIGEST256_LEN))
         continue;
       if (digest256map_get(ed_id_map, vrs->ed25519_id) != NULL) {
         log_warn(LD_DIR, "Vote networkstatus ed25519 identities were not "

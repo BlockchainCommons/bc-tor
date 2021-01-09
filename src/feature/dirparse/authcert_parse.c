@@ -1,8 +1,13 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+/**
+ * @file authcert_parse.c
+ * @brief Authority certificate parsing.
+ **/
 
 #include "core/or/or.h"
 #include "feature/dirparse/authcert_parse.h"
@@ -13,13 +18,16 @@
 #include "lib/memarea/memarea.h"
 
 #include "feature/nodelist/authority_cert_st.h"
+#include "feature/dirparse/authcert_members.h"
 
 /** List of tokens recognized in V3 authority certificates. */
+// clang-format off
 static token_rule_t dir_key_certificate_table[] = {
-#include "feature/dirparse/authcert_members.i"
+  AUTHCERT_MEMBERS,
   T1("fingerprint",      K_FINGERPRINT,              CONCAT_ARGS, NO_OBJ ),
   END_OF_TABLE
 };
+// clang-format on
 
 /** Parse a key certificate from <b>s</b>; point <b>end-of-string</b> to
  * the first character after the certificate. */

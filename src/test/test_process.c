@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Tor Project, Inc. */
+/* Copyright (c) 2018-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -594,7 +594,7 @@ test_unix(void *arg)
 
  done:
   process_free(process);
-#endif
+#endif /* !defined(_WIN32) */
 }
 
 static void
@@ -649,7 +649,7 @@ test_win32(void *arg)
  done:
   tor_free(joined_argv);
   process_free(process);
-#endif
+#endif /* defined(_WIN32) */
 }
 
 struct testcase_t process_tests[] = {

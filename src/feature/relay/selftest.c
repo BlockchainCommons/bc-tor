@@ -1,18 +1,16 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
  * \file selftest.c
  * \brief Relay self-testing
  *
- * Relays need to make sure that their own ports are reasonable, and estimate
+ * Relays need to make sure that their own ports are reachable, and estimate
  * their own bandwidth, before publishing.
  */
-
-#define SELFTEST_PRIVATE
 
 #include "core/or/or.h"
 
@@ -26,7 +24,7 @@
 #include "core/or/crypt_path_st.h"
 #include "core/or/origin_circuit_st.h"
 #include "core/or/relay.h"
-#include "feature/control/control.h"
+#include "feature/control/control_events.h"
 #include "feature/dirclient/dirclient.h"
 #include "feature/dircommon/directory.h"
 #include "feature/nodelist/authority_cert_st.h"
@@ -35,6 +33,7 @@
 #include "feature/nodelist/routerlist.h" // but...
 #include "feature/nodelist/routerset.h"
 #include "feature/nodelist/torcert.h"
+#include "feature/relay/relay_periodic.h"
 #include "feature/relay/router.h"
 #include "feature/relay/selftest.h"
 
@@ -214,6 +213,44 @@ router_do_reachability_checks(int test_or, int test_dir)
   }
 }
 
+/** We've decided to start our reachability testing. If all
+ * is set, log this to the user. Return 1 if we did, or 0 if
+ * we chose not to log anything. */
+int
+inform_testing_reachability(void)
+{
+  char dirbuf[128];
+  char *address;
+  const routerinfo_t *me = router_get_my_routerinfo();
+  if (!me)
+    return 0;
+
+  address = tor_dup_ip(me->addr);
+  if (!address)
+    return 0;
+
+  control_event_server_status(LOG_NOTICE,
+                              "CHECKING_REACHABILITY ORADDRESS=%s:%d",
+                              address, me->or_port);
+  if (me->dir_port) {
+    tor_snprintf(dirbuf, sizeof(dirbuf), " and DirPort %s:%d",
+                 address, me->dir_port);
+    control_event_server_status(LOG_NOTICE,
+                                "CHECKING_REACHABILITY DIRADDRESS=%s:%d",
+                                address, me->dir_port);
+  }
+  log_notice(LD_OR, "Now checking whether ORPort %s:%d%s %s reachable... "
+                         "(this may take up to %d minutes -- look for log "
+                         "messages indicating success)",
+      address, me->or_port,
+      me->dir_port ? dirbuf : "",
+      me->dir_port ? "are" : "is",
+      TIMEOUT_UNTIL_UNREACHABILITY_COMPLAINT/60);
+
+  tor_free(address);
+  return 1;
+}
+
 /** Annotate that we found our ORPort reachable. */
 void
 router_orport_found_reachable(void)
@@ -222,6 +259,10 @@ router_orport_found_reachable(void)
   const or_options_t *options = get_options();
   if (!can_reach_or_port && me) {
     char *address = tor_dup_ip(me->addr);
+
+    if (!address)
+      return;
+
     log_notice(LD_OR,"Self-testing indicates your ORPort is reachable from "
                "the outside. Excellent.%s",
                options->PublishServerDescriptor_ != NO_DIRINFO
@@ -249,6 +290,10 @@ router_dirport_found_reachable(void)
   const or_options_t *options = get_options();
   if (!can_reach_dir_port && me) {
     char *address = tor_dup_ip(me->addr);
+
+    if (!address)
+      return;
+
     log_notice(LD_DIRSERV,"Self-testing indicates your DirPort is reachable "
                "from the outside. Excellent.%s",
                options->PublishServerDescriptor_ != NO_DIRINFO

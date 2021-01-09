@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -199,7 +199,7 @@ process_unix_exec(process_t *process)
                "Cannot find maximum file descriptor, assuming: %d", max_fd);
     }
   }
-#else /* !(defined(_SC_OPEN_MAX)) */
+#else /* !defined(_SC_OPEN_MAX) */
   max_fd = DEFAULT_MAX_FD;
 #endif /* defined(_SC_OPEN_MAX) */
 
@@ -695,4 +695,4 @@ process_unix_close_file_descriptors(process_unix_t *unix_process)
   return success;
 }
 
-#endif /* defined(_WIN32). */
+#endif /* !defined(_WIN32) */

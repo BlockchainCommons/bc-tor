@@ -1,11 +1,11 @@
-/* Copyright (c) 2014-2019, The Tor Project, Inc. */
+/* Copyright (c) 2014-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
 
 #include <math.h>
 
-#define TOR_CHANNEL_INTERNAL_
+#define CHANNEL_OBJECT_PRIVATE
 #include "core/or/or.h"
 #include "lib/net/address.h"
 #include "lib/buf/buffers.h"
@@ -14,6 +14,7 @@
 #include "core/mainloop/connection.h"
 #include "core/or/connection_or.h"
 #include "app/config/config.h"
+#include "app/config/resolve_addr.h"
 /* For init/free stuff */
 #include "core/or/scheduler.h"
 #include "lib/tls/tortls.h"

@@ -1,6 +1,6 @@
-= Fuzzing Tor
+# Fuzzing Tor
 
-== The simple version (no fuzzing, only tests)
+## The simple version (no fuzzing, only tests)
 
 Check out fuzzing-corpora, and set TOR_FUZZ_CORPORA to point to the place
 where you checked it out.
@@ -11,8 +11,7 @@ To run the fuzzing test cases in a deterministic fashion, use:
 This won't actually fuzz Tor!  It will just run all the fuzz binaries
 on our existing set of testcases for the fuzzer.
 
-
-== Different kinds of fuzzing
+## Different kinds of fuzzing
 
 Right now we support three different kinds of fuzzer.
 
@@ -26,7 +25,7 @@ have a reasonably recent clang and libfuzzer installed.  At that point, you
 just build with --enable-expensive-hardening and --enable-libfuzzer.  That
 will produce a set of binaries in src/test/fuzz/lf-fuzz-* .  These programs
 take as input a series of directories full of fuzzing examples.  For more
-information on libfuzzer, see http://llvm.org/docs/LibFuzzer.html
+information on libfuzzer, see https://llvm.org/docs/LibFuzzer.html
 
 Third, there's Google's OSS-Fuzz infrastructure, which expects to get all of
 its.  For more on this, see https://github.com/google/oss-fuzz and the
@@ -37,7 +36,7 @@ In all cases, you'll need some starting examples to give the fuzzer when it
 starts out.  There's a set in the "fuzzing-corpora" git repository.  Try
 setting TOR_FUZZ_CORPORA to point to a checkout of that repository
 
-== Writing Tor fuzzers
+## Writing Tor fuzzers
 
 A tor fuzzing harness should have:
 * a fuzz_init() function to set up any necessary global state.
@@ -51,8 +50,7 @@ But the fuzzing harness should crash if tor fails an assertion, triggers a
 bug, or accesses memory it shouldn't. This helps fuzzing frameworks detect
 "interesting" cases.
 
-
-== Guided Fuzzing with AFL
+## Guided Fuzzing with AFL
 
 There is no HTTPS, hash, or signature for American Fuzzy Lop's source code, so
 its integrity can't be verified. That said, you really shouldn't fuzz on a
@@ -74,7 +72,7 @@ and then not actually use it.
 
 Read afl/docs/notes_for_asan.txt for more details.
 
-  Download recidivm from http://jwilk.net/software/recidivm
+  Download recidivm from https://jwilk.net/software/recidivm
   Download the signature
   Check the signature
   tar xvzf recidivm*.tar.gz
@@ -101,7 +99,7 @@ macOS (OS X) requires slightly more preparation, including:
 * using afl-clang (or afl-clang-fast from the llvm directory)
 * disabling external crash reporting (AFL will guide you through this step)
 
-== Triaging Issues
+## Triaging Issues
 
 Crashes are usually interesting, particularly if using AFL_HARDEN=1 and --enable-expensive-hardening. Sometimes crashes are due to bugs in the harness code.
 
@@ -115,7 +113,7 @@ To see what fuzz-http is doing with a test case, call it like this:
 
 (Logging is disabled while fuzzing to increase fuzzing speed.)
 
-== Reporting Issues
+## Reporting Issues
 
 Please report any issues discovered using the process in Tor's security issue
 policy:

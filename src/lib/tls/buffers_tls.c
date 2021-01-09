@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -68,10 +68,10 @@ buf_read_from_tls(buf_t *buf, tor_tls_t *tls, size_t at_most)
 
   check_no_tls_errors();
 
-  IF_BUG_ONCE(buf->datalen >= INT_MAX)
-    return -1;
-  IF_BUG_ONCE(buf->datalen >= INT_MAX - at_most)
-    return -1;
+  IF_BUG_ONCE(buf->datalen > BUF_MAX_LEN)
+    return TOR_TLS_ERROR_MISC;
+  IF_BUG_ONCE(buf->datalen > BUF_MAX_LEN - at_most)
+    return TOR_TLS_ERROR_MISC;
 
   while (at_most > total_read) {
     size_t readlen = at_most - total_read;
@@ -90,7 +90,7 @@ buf_read_from_tls(buf_t *buf, tor_tls_t *tls, size_t at_most)
     r = read_to_chunk_tls(buf, chunk, tls, readlen);
     if (r < 0)
       return r; /* Error */
-    tor_assert(total_read+r < INT_MAX);
+    tor_assert(total_read+r <= BUF_MAX_LEN);
     total_read += r;
     if ((size_t)r < readlen) /* eof, block, or no more to read. */
       break;
@@ -146,10 +146,10 @@ buf_flush_to_tls(buf_t *buf, tor_tls_t *tls, size_t flushlen,
   size_t flushed = 0;
   ssize_t sz;
   tor_assert(buf_flushlen);
-  if (BUG(*buf_flushlen > buf->datalen)) {
+  IF_BUG_ONCE(*buf_flushlen > buf->datalen) {
     *buf_flushlen = buf->datalen;
   }
-  if (BUG(flushlen > *buf_flushlen)) {
+  IF_BUG_ONCE(flushlen > *buf_flushlen) {
     flushlen = *buf_flushlen;
   }
   sz = (ssize_t) flushlen;
@@ -177,6 +177,6 @@ buf_flush_to_tls(buf_t *buf, tor_tls_t *tls, size_t flushlen,
     if (r == 0) /* Can't flush any more now. */
       break;
   } while (sz > 0);
-  tor_assert(flushed < INT_MAX);
+  tor_assert(flushed <= BUF_MAX_LEN);
   return (int)flushed;
 }

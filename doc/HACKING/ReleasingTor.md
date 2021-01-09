@@ -1,11 +1,9 @@
-
-Putting out a new release
--------------------------
+# Putting out a new release
 
 Here are the steps that the maintainer should take when putting out a
 new Tor release:
 
-=== 0. Preliminaries
+## 0. Preliminaries
 
 1. Get at least two of weasel/arma/Sebastian to put the new
    version number in their approved versions list.  Give them a few
@@ -18,10 +16,13 @@ new Tor release:
    date of a TB that contains it.  See note below in "commit, upload,
    announce".
 
-=== I. Make sure it works
+## I. Make sure it works
 
-1. Make sure that CI passes: have a look at Travis, Appveyor, and
-   Jenkins.  Make sure you're looking at the right branches.
+1. Make sure that CI passes: have a look at Travis
+   (https://travis-ci.org/torproject/tor/branches), Appveyor
+   (https://ci.appveyor.com/project/torproject/tor/history), and
+   Jenkins (https://jenkins.torproject.org/view/tor/).
+   Make sure you're looking at the right branches.
 
    If there are any unexplained failures, try to fix them or figure them
    out.
@@ -40,13 +41,15 @@ new Tor release:
     * clang scan-build.  (See the script in ./scripts/test/scan_build.sh)
 
     * make test-network and make test-network-all (with
-      --enable-expensive-hardening)
+      --enable-fragile-hardening)
 
     * Running Tor yourself and making sure that it actually works for you.
 
+    * Running Tor under valgrind.  (Our 'fragile hardening' doesn't cover
+      libevent and openssl, so using valgrind will sometimes find extra
+      memory leaks.)
 
-=== II. Write a changelog
-
+## II. Write a changelog
 
 1a. (Alpha release variant)
 
@@ -131,8 +134,7 @@ new Tor release:
    to start sorting and condensing entries.  (Generally, we don't edit the
    text of existing entries, though.)
 
-
-=== III. Making the source release.
+## III. Making the source release.
 
 1. In `maint-0.?.x`, bump the version number in `configure.ac` and run
    `make update-versions` to update version numbers in other
@@ -158,7 +160,7 @@ new Tor release:
    If it is not, you'll need to poke Roger, Weasel, and Sebastian again: see
    item 0.1 at the start of this document.
 
-=== IV. Commit, upload, announce
+## IV. Commit, upload, announce
 
 1. Sign the tarball, then sign and push the git tag:
 
@@ -176,7 +178,8 @@ new Tor release:
    `/srv/dist-master.torproject.org/htdocs/` on dist-master. Run
    "static-update-component dist.torproject.org" on dist-master.
 
-   In the webwml.git repository, `include/versions.wmi` and `Makefile`
+   In the webwml.git repository, `include/versions.wmi` and `Makefile`.
+   In the project/web/tpo.git repository, update `databags/versions.ini`
    to note the new version.  Push these changes to master.
 
    (NOTE: Due to #17805, there can only be one stable version listed at
@@ -189,7 +192,7 @@ new Tor release:
 3. Email the packagers (cc'ing tor-team) that a new tarball is up.
    The current list of packagers is:
 
-       - {weasel,gk,mikeperry} at torproject dot org
+       - {weasel,sysrqb,mikeperry} at torproject dot org
        - {blueness} at gentoo dot org
        - {paul} at invizbox dot io
        - {vincent} at invizbox dot com
@@ -206,7 +209,6 @@ new Tor release:
    Mention where to download the tarball (https://dist.torproject.org).
 
    Include a link to the changelog.
-
 
 4. Add the version number to Trac.  To do this, go to Trac, log in,
     select "Admin" near the top of the screen, then select "Versions" from
@@ -233,13 +235,17 @@ new Tor release:
    For templates to use when announcing, see:
        https://trac.torproject.org/projects/tor/wiki/org/teams/NetworkTeam/AnnouncementTemplates
 
-=== V. Aftermath and cleanup
+## V. Aftermath and cleanup
 
 1. If it's a stable release, bump the version number in the
     `maint-x.y.z` branch to "newversion-dev", and do a `merge -s ours`
     merge to avoid taking that change into master.
 
-2. Forward-port the ChangeLog (and ReleaseNotes if appropriate) to the
+2. If there is a new `maint-x.y.z` branch, create a Travis CI cron job that
+   builds the release every week. (It's ok to skip the weekly build if the
+   branch was updated in the last 24 hours.)
+
+3. Forward-port the ChangeLog (and ReleaseNotes if appropriate) to the
    master branch.
 
-3. Keep an eye on the blog post, to moderate comments and answer questions.
+4. Keep an eye on the blog post, to moderate comments and answer questions.

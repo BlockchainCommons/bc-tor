@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -296,7 +296,7 @@ tor_version_parse(const char *s, tor_version_t *out)
       return -1;
     hexlen = (int)(close_paren-cp);
     memwipe(digest, 0, sizeof(digest));
-    if ( hexlen == 0 || (hexlen % 2) == 1)
+    if (hexlen == 0 || (hexlen % 2) == 1)
       return -1;
     if (base16_decode(digest, hexlen/2, cp, hexlen) != hexlen/2)
       return -1;
@@ -448,8 +448,11 @@ memoize_protover_summary(protover_summary_flags_t *out,
   out->supports_v3_rendezvous_point =
     protocol_list_supports_protocol(protocols, PRT_HSREND,
                                     PROTOVER_HS_RENDEZVOUS_POINT_V3);
-    out->supports_padding =
-      protocol_list_supports_protocol(protocols, PRT_PADDING, 1);
+  out->supports_hs_setup_padding =
+    protocol_list_supports_protocol(protocols, PRT_PADDING,
+                                    PROTOVER_HS_SETUP_PADDING);
+  out->supports_establish_intro_dos_extension =
+    protocol_list_supports_protocol(protocols, PRT_HSINTRO, 5);
 
   protover_summary_flags_t *new_cached = tor_memdup(out, sizeof(*out));
   cached = strmap_set(protover_summary_map, protocols, new_cached);

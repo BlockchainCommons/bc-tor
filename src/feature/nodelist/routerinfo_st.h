@@ -1,8 +1,13 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+/**
+ * @file routerinfo_st.h
+ * @brief Router descriptor structure.
+ **/
 
 #ifndef ROUTERINFO_ST_H
 #define ROUTERINFO_ST_H
@@ -21,9 +26,6 @@ struct routerinfo_t {
   uint16_t dir_port; /**< Port for HTTP directory connections. */
 
   /** A router's IPv6 address, if it has one. */
-  /* XXXXX187 Actually these should probably be part of a list of addresses,
-   * not just a special case.  Use abstractions to access these; don't do it
-   * directly. */
   tor_addr_t ipv6_addr;
   uint16_t ipv6_orport;
 
@@ -112,4 +114,4 @@ struct routerinfo_t {
   uint8_t purpose;
 };
 
-#endif
+#endif /* !defined(ROUTERINFO_ST_H) */

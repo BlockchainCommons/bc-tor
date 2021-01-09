@@ -23,7 +23,17 @@ TESTSCRIPTS = \
 	src/test/test_workqueue_pipe.sh \
 	src/test/test_workqueue_pipe2.sh \
 	src/test/test_workqueue_socketpair.sh \
-	src/test/test_switch_id.sh
+	src/test/test_switch_id.sh \
+	src/test/test_cmdline.sh \
+	src/test/test_parseconf.sh \
+        src/test/unittest_part1.sh \
+        src/test/unittest_part2.sh \
+        src/test/unittest_part3.sh \
+        src/test/unittest_part4.sh \
+        src/test/unittest_part5.sh \
+        src/test/unittest_part6.sh \
+        src/test/unittest_part7.sh \
+        src/test/unittest_part8.sh
 
 if USE_RUST
 TESTSCRIPTS += \
@@ -31,11 +41,28 @@ TESTSCRIPTS += \
 endif
 
 if USEPYTHON
-TESTSCRIPTS += src/test/test_ntor.sh src/test/test_hs_ntor.sh src/test/test_bt.sh
+TESTSCRIPTS += \
+	src/test/test_ntor.sh \
+	src/test/test_hs_ntor.sh \
+	src/test/test_bt.sh \
+	scripts/maint/practracker/test_practracker.sh \
+	scripts/maint/run_check_subsystem_order.sh
+
+if COVERAGE_ENABLED
+# ...
+else
+# Only do this when coverage is not on, since it invokes lots of code
+# in a kind of unpredictable way.
 TESTSCRIPTS += src/test/test_rebind.sh
 endif
+endif
 
-TESTS += src/test/test src/test/test-slow src/test/test-memwipe \
+if USE_PERL
+TESTSCRIPTS += \
+        scripts/maint/checkSpaceTest.sh
+endif
+
+TESTS += src/test/test-slow src/test/test-memwipe \
 	src/test/test_workqueue \
 	src/test/test_keygen.sh \
 	src/test/test_key_expiration.sh \
@@ -43,15 +70,25 @@ TESTS += src/test/test src/test/test-slow src/test/test-memwipe \
 	$(TESTSCRIPTS)
 
 # These flavors are run using automake's test-driver and test-network.sh
-TEST_CHUTNEY_FLAVORS = basic-min bridges-min hs-v2-min hs-v3-min \
-	single-onion-v23
+
+# run a quick test or two
+# this test only uses IPv4
+TEST_CHUTNEY_FLAVOR_QUICK = bridges+hs-v23
 # only run if we can ping6 ::1 (localhost)
-# IPv6-only v3 single onion services don't work yet, so we don't test the
-# single-onion-v23-ipv6-md flavor
+TEST_CHUTNEY_FLAVOR_QUICK_IPV6 = single-onion-v23-ipv6-md
+
+# run a basic set of tests, which only use IPv4
+TEST_CHUTNEY_FLAVORS = basic-min bridges-min hs-v23-min single-onion-v23
+
+# only run if we can ping ::1 (localhost)
 TEST_CHUTNEY_FLAVORS_IPV6 = bridges+ipv6-min ipv6-exit-min hs-v23-ipv6-md \
-	single-onion-ipv6-md
+	single-onion-v23-ipv6-md
+
 # only run if we can find a stable (or simply another) version of tor
-TEST_CHUTNEY_FLAVORS_MIXED = mixed+hs-v2
+TEST_CHUTNEY_FLAVORS_MIXED = mixed+hs-v23
+
+# only run if IPv6 and mixed networks are run
+TEST_CHUTNEY_FLAVORS_IPV6_MIXED = mixed+hs-v23-ipv6
 
 ### This is a lovely feature, but it requires automake >= 1.12, and Tor
 ###  doesn't require that yet.
@@ -85,10 +122,16 @@ src_test_AM_CPPFLAGS = -DSHARE_DATADIR="\"$(datadir)\"" \
 src_test_test_SOURCES =
 
 if UNITTESTS_ENABLED
+
+# ADD_C_FILE: INSERT SOURCES HERE.
 src_test_test_SOURCES += \
+	src/test/fakecircs.c \
 	src/test/log_test_helpers.c \
 	src/test/hs_test_helpers.c \
+	src/test/opts_test_helpers.c \
 	src/test/rend_test_helpers.c \
+	src/test/resolve_test_helpers.c \
+	src/test/rng_test_helpers.c \
 	src/test/test.c \
 	src/test/test_accounting.c \
 	src/test/test_addr.c \
@@ -107,11 +150,14 @@ src_test_test_SOURCES += \
 	src/test/test_checkdir.c \
 	src/test/test_circuitlist.c \
 	src/test/test_circuitmux.c \
+	src/test/test_circuitmux_ewma.c \
 	src/test/test_circuitbuild.c \
 	src/test/test_circuituse.c \
 	src/test/test_circuitstats.c \
 	src/test/test_compat_libevent.c \
 	src/test/test_config.c \
+	src/test/test_confmgr.c \
+	src/test/test_confparse.c \
 	src/test/test_connection.c \
 	src/test/test_conscache.c \
 	src/test/test_consdiff.c \
@@ -126,6 +172,7 @@ src_test_test_SOURCES += \
 	src/test/test_dir.c \
 	src/test/test_dir_common.c \
 	src/test/test_dir_handle_get.c \
+	src/test/test_dispatch.c \
 	src/test/test_dos.c \
 	src/test/test_entryconn.c \
 	src/test/test_entrynodes.c \
@@ -141,30 +188,38 @@ src_test_test_SOURCES += \
 	src/test/test_hs_client.c  \
 	src/test/test_hs_intropoint.c \
 	src/test/test_hs_control.c \
+	src/test/test_hs_ob.c \
 	src/test/test_handles.c \
 	src/test/test_hs_cache.c \
 	src/test/test_hs_descriptor.c \
+	src/test/test_hs_dos.c \
 	src/test/test_introduce.c \
 	src/test/test_keypin.c \
 	src/test/test_link_handshake.c \
 	src/test/test_logging.c \
 	src/test/test_mainloop.c \
 	src/test/test_microdesc.c \
+	src/test/test_namemap.c \
 	src/test/test_netinfo.c \
 	src/test/test_nodelist.c \
 	src/test/test_oom.c \
 	src/test/test_oos.c \
 	src/test/test_options.c \
+	src/test/test_options_act.c \
 	src/test/test_pem.c \
 	src/test/test_periodic_event.c \
 	src/test/test_policy.c \
 	src/test/test_process.c \
+	src/test/test_process_descs.c \
 	src/test/test_prob_distr.c \
 	src/test/test_procmon.c \
+	src/test/test_proto_haproxy.c \
 	src/test/test_proto_http.c \
 	src/test/test_proto_misc.c \
 	src/test/test_protover.c \
 	src/test/test_pt.c \
+	src/test/test_pubsub_build.c \
+	src/test/test_pubsub_msg.c \
 	src/test/test_relay.c \
 	src/test/test_relaycell.c \
 	src/test/test_relaycrypt.c \
@@ -175,11 +230,14 @@ src_test_test_SOURCES += \
 	src/test/test_routerlist.c \
 	src/test/test_routerset.c \
 	src/test/test_scheduler.c \
+	src/test/test_sendme.c \
 	src/test/test_shared_random.c \
 	src/test/test_socks.c \
+	src/test/test_stats.c \
 	src/test/test_status.c \
 	src/test/test_storagedir.c \
 	src/test/test_threads.c \
+	src/test/test_token_bucket.c \
 	src/test/test_tortls.c \
 	src/test/test_util.c \
 	src/test/test_util_format.c \
@@ -207,10 +265,13 @@ endif
 src_test_test_slow_SOURCES =
 if UNITTESTS_ENABLED
 src_test_test_slow_SOURCES += \
+	src/test/rng_test_helpers.c \
 	src/test/test_slow.c \
 	src/test/test_crypto_slow.c \
 	src/test/test_process_slow.c \
 	src/test/test_prob_distr.c \
+	src/test/ptr_helpers.c \
+	src/test/test_ptr_slow.c \
 	src/test/testing_common.c \
 	src/test/testing_rsakeys.c \
 	src/ext/tinytest.c
@@ -308,12 +369,18 @@ src_test_test_timers_LDADD = \
 	@TOR_LZMA_LIBS@
 src_test_test_timers_LDFLAGS = $(src_test_test_LDFLAGS)
 
+# ADD_C_FILE: INSERT HEADERS HERE.
 noinst_HEADERS+= \
 	src/test/fakechans.h \
+	src/test/fakecircs.h \
 	src/test/hs_test_helpers.h \
 	src/test/log_test_helpers.h \
+	src/test/opts_test_helpers.h \
 	src/test/rend_test_helpers.h \
+	src/test/resolve_test_helpers.h \
+	src/test/rng_test_helpers.h \
 	src/test/test.h \
+	src/test/ptr_helpers.h \
 	src/test/test_helpers.h \
 	src/test/test_dir_common.h \
 	src/test/test_connection.h \
@@ -372,6 +439,7 @@ EXTRA_DIST += \
 	src/test/test_rebind.sh \
 	src/test/test_rebind.py \
 	src/test/zero_length_keys.sh \
+	scripts/maint/run_check_subsystem_order.sh \
 	src/test/rust_supp.txt \
 	src/test/test_keygen.sh \
 	src/test/test_key_expiration.sh \
@@ -385,7 +453,17 @@ EXTRA_DIST += \
 	src/test/test_workqueue_efd2.sh \
 	src/test/test_workqueue_pipe.sh \
 	src/test/test_workqueue_pipe2.sh \
-	src/test/test_workqueue_socketpair.sh
+	src/test/test_workqueue_socketpair.sh \
+	src/test/test_cmdline.sh \
+	src/test/test_parseconf.sh \
+        src/test/unittest_part1.sh \
+        src/test/unittest_part2.sh \
+        src/test/unittest_part3.sh \
+        src/test/unittest_part4.sh \
+        src/test/unittest_part5.sh \
+        src/test/unittest_part6.sh \
+        src/test/unittest_part7.sh \
+        src/test/unittest_part8.sh
 
 test-rust:
 	$(TESTS_ENVIRONMENT) "$(abs_top_srcdir)/src/test/test_rust.sh"

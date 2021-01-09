@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2019, The Tor Project, Inc. */
+/* Copyright (c) 2014-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -631,7 +631,7 @@ mock_clock_skew_warning(const connection_t *conn, long apparent_skew,
   (void)conn;
   mock_apparent_skew = apparent_skew;
   tt_int_op(trusted, OP_EQ, 1);
-  tt_int_op(domain, OP_EQ, LD_GENERAL);
+  tt_i64_op(domain, OP_EQ, LD_GENERAL);
   tt_str_op(received, OP_EQ, "microdesc flavor consensus");
   tt_str_op(source, OP_EQ, "CONSENSUS");
  done:

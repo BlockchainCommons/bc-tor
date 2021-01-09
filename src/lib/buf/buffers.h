@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -28,6 +28,9 @@ void buf_free_(buf_t *buf);
 #define buf_free(b) FREE_AND_NULL(buf_t, buf_free_, (b))
 void buf_clear(buf_t *buf);
 buf_t *buf_copy(const buf_t *buf);
+
+/** Maximum bytes in a buffer, inclusive. */
+#define BUF_MAX_LEN (INT_MAX - 1)
 
 MOCK_DECL(size_t, buf_datalen, (const buf_t *buf));
 size_t buf_allocation(const buf_t *buf);

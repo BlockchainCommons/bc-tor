@@ -1,5 +1,5 @@
 # This is the ed25519 implementation from
-#     http://ed25519.cr.yp.to/python/ed25519.py .
+#     https://ed25519.cr.yp.to/python/ed25519.py .
 # It is in the public domain.
 #
 # It isn't constant-time.  Don't use it except for testing.  Also, see
@@ -7,6 +7,11 @@
 # test vectors, I'd suggest.
 #
 # Don't edit this file.  Mess with ed25519_ref.py
+
+# Future imports for Python 2.7, mandatory in 3.0
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import hashlib
 

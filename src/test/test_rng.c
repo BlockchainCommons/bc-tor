@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /*
@@ -46,7 +46,7 @@ main(int argc, char **argv)
       return 1;
     }
   }
-#endif
+#endif /* 0 */
 
   crypto_fast_rng_t *rng = crypto_fast_rng_new();
   while (1) {

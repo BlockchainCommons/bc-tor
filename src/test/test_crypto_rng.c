@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -216,6 +216,14 @@ test_crypto_rng_fast(void *arg)
   /* All values should have come up once. */
   for (int i=0; i<5; ++i) {
     tt_int_op(counts[i], OP_GT, 0);
+  }
+
+  /* per-thread rand_fast shouldn't crash or leak. */
+  crypto_fast_rng_t *t_rng = get_thread_fast_rng();
+  for (int i = 0; i < N; ++i) {
+    uint64_t u64 = crypto_fast_rng_get_uint64(t_rng, UINT64_C(1)<<40);
+    tt_u64_op(u64, OP_GE, 0);
+    tt_u64_op(u64, OP_LT, UINT64_C(1)<<40);
   }
 
  done:
