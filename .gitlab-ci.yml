@@ -37,6 +37,12 @@ variables:
     paths:
       - artifacts/
 
+
+# This template is used for x86-64 builds.
+.x86-64-template: &x86-64-template
+  tags:
+    - amd64
+
 # This template should be usable on any system that's based on apt.
 .apt-template: &apt-template |
       export LC_ALL=C.UTF-8
@@ -57,6 +63,7 @@ variables:
 # This template sets us up for Debian system in particular.
 .debian-template: &debian-template
   <<: *artifacts-template
+  <<: *x86-64-template
   variables:
     DEBIAN_FRONTEND: "noninteractive"
   # TODO: Using "cache" in this way speeds up our downloads.  It would be
@@ -96,10 +103,18 @@ variables:
     - if [ "$CHUTNEY" = yes ]; then git clone --depth 1 https://git.torproject.org/chutney.git ;  export CHUTNEY_PATH="$(pwd)/chutney"; fi
     - if [ "$TRACING" = yes ]; then apt install liblttng-ust-dev; fi
 
-# Minmal check on debian: just make, make check.
+# Minimal check on debian: just make, make check.
 #
 debian-minimal:
-  image: debian:stable
+  image: debian:buster
+  <<: *debian-template
+  script:
+    - ./scripts/ci/ci-driver.sh
+
+# Minmal check on debian/i386: just make, make check.
+#
+debian-i386-minimal:
+  image: i386/debian:buster
   <<: *debian-template
   script:
     - ./scripts/ci/ci-driver.sh
@@ -110,7 +125,7 @@ debian-minimal:
 #
 # TODO: This will be faster once we merge #40098 and #40099.
 debian-hardened:
-  image: debian:testing
+  image: debian:bullseye
   <<: *debian-template
   variables:
     ALL_BUGS_ARE_FATAL: "yes"
@@ -122,7 +137,7 @@ debian-hardened:
 #####
 # Distcheck on debian stable
 debian-distcheck:
-  image: debian:stable
+  image: debian:buster
   <<: *debian-template
   variables:
     DISTCHECK: "yes"
@@ -133,7 +148,7 @@ debian-distcheck:
 #####
 # Documentation tests on debian stable: doxygen and asciidoc.
 debian-docs:
-  image: debian:stable
+  image: debian:buster
   <<: *debian-template
   variables:
     DOXYGEN: "yes"
@@ -151,7 +166,7 @@ debian-docs:
 #       with the 'artifacts' mechanism, in theory, but it would be good to
 #       avoid having to have a system with hundreds of artifacts.
 debian-integration:
-  image: debian:stable
+  image: debian:buster
   <<: *debian-template
   variables:
     CHECK: "no"
@@ -165,11 +180,12 @@ debian-integration:
 #####
 # Tracing build on Debian stable.
 debian-tracing:
-  image: debian:stable
+  image: debian:buster
   <<: *debian-template
   variables:
     TRACING: "yes"
     CHECK: "no"
+    DISTCHECK: "yes"
   script:
     - ./scripts/ci/ci-driver.sh
   # Ensure that we only run tracing when it's implemented.
@@ -188,7 +204,7 @@ debian-tracing:
 #####
 # No-authority mode
 debian-disable-dirauth:
-  image: debian:stable
+  image: debian:buster
   <<: *debian-template
   variables:
     DISABLE_DIRAUTH: "yes"
@@ -198,7 +214,7 @@ debian-disable-dirauth:
 #####
 # No-relay mode
 debian-disable-relay:
-  image: debian:stable
+  image: debian:buster
   <<: *debian-template
   variables:
     DISABLE_RELAY: "yes"
@@ -220,7 +236,7 @@ debian-disable-relay:
 #####
 # NSS check on debian
 debian-nss:
-  image: debian:stable
+  image: debian:buster
   <<: *debian-template
   variables:
     NSS: "yes"

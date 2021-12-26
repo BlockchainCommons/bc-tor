@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define ADDRESSMAP_PRIVATE
@@ -341,6 +341,7 @@ test_addr_ip6_helpers(void *arg)
   test_pton6_bad("0XYXXY");
   test_pton6_bad("0x");
   test_pton6_bad("0X");
+  test_pton6_bad("2000::1a00::1000:fc098");
 
   /* test internal checking */
   test_external_ip("fbff:ffff::2:7", 0);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2020, The Tor Project, Inc. */
+/* Copyright (c) 2017-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define HS_CLIENT_PRIVATE
@@ -75,7 +75,8 @@ hs_helper_build_intro_point(const ed25519_keypair_t *signing_kp, time_t now,
     ret = ed25519_keypair_generate(&auth_kp, 0);
     tt_int_op(ret, OP_EQ, 0);
   }
-  ip->auth_key_cert = tor_cert_create(signing_kp, CERT_TYPE_AUTH_HS_IP_KEY,
+  ip->auth_key_cert = tor_cert_create_ed25519(signing_kp,
+                                      CERT_TYPE_AUTH_HS_IP_KEY,
                                       &auth_kp.pubkey, now,
                                       HS_DESC_CERT_LIFETIME,
                                       CERT_FLAG_INCLUDE_SIGNING_KEY);
@@ -110,7 +111,8 @@ hs_helper_build_intro_point(const ed25519_keypair_t *signing_kp, time_t now,
     }
     ed25519_keypair_from_curve25519_keypair(&ed25519_kp, &signbit,
                                             &curve25519_kp);
-    cross_cert = tor_cert_create(signing_kp, CERT_TYPE_CROSS_HS_IP_KEYS,
+    cross_cert = tor_cert_create_ed25519(signing_kp,
+                                 CERT_TYPE_CROSS_HS_IP_KEYS,
                                  &ed25519_kp.pubkey, time(NULL),
                                  HS_DESC_CERT_LIFETIME,
                                  CERT_FLAG_INCLUDE_SIGNING_KEY);
@@ -132,7 +134,8 @@ hs_helper_build_intro_point(const ed25519_keypair_t *signing_kp, time_t now,
  * points are added. */
 static hs_descriptor_t *
 hs_helper_build_hs_desc_impl(unsigned int no_ip,
-                             const ed25519_keypair_t *signing_kp)
+                             const ed25519_keypair_t *signing_kp,
+                             uint64_t rev_counter)
 {
   int ret;
   int i;
@@ -155,11 +158,11 @@ hs_helper_build_hs_desc_impl(unsigned int no_ip,
          sizeof(ed25519_public_key_t));
 
   desc->plaintext_data.signing_key_cert =
-    tor_cert_create(&blinded_kp, CERT_TYPE_SIGNING_HS_DESC,
+    tor_cert_create_ed25519(&blinded_kp, CERT_TYPE_SIGNING_HS_DESC,
                     &signing_kp->pubkey, now, 3600,
                     CERT_FLAG_INCLUDE_SIGNING_KEY);
   tt_assert(desc->plaintext_data.signing_key_cert);
-  desc->plaintext_data.revision_counter = 42;
+  desc->plaintext_data.revision_counter = rev_counter;
   desc->plaintext_data.lifetime_sec = 3 * 60 * 60;
 
   hs_get_subcredential(&signing_kp->pubkey, &blinded_kp.pubkey,
@@ -224,18 +227,26 @@ hs_helper_get_subcred_from_identity_keypair(ed25519_keypair_t *signing_kp,
                        subcred_out);
 }
 
+/* Build a descriptor with a specific rev counter. */
+hs_descriptor_t *
+hs_helper_build_hs_desc_with_rev_counter(const ed25519_keypair_t *signing_kp,
+                                         uint64_t revision_counter)
+{
+  return hs_helper_build_hs_desc_impl(0, signing_kp, revision_counter);
+}
+
 /* Build a descriptor with introduction points. */
 hs_descriptor_t *
 hs_helper_build_hs_desc_with_ip(const ed25519_keypair_t *signing_kp)
 {
-  return hs_helper_build_hs_desc_impl(0, signing_kp);
+  return hs_helper_build_hs_desc_impl(0, signing_kp, 42);
 }
 
 /* Build a descriptor without any introduction points. */
 hs_descriptor_t *
 hs_helper_build_hs_desc_no_ip(const ed25519_keypair_t *signing_kp)
 {
-  return hs_helper_build_hs_desc_impl(1, signing_kp);
+  return hs_helper_build_hs_desc_impl(1, signing_kp, 42);
 }
 
 hs_descriptor_t *
@@ -245,7 +256,7 @@ hs_helper_build_hs_desc_with_client_auth(
                         const ed25519_keypair_t *signing_kp)
 {
   curve25519_keypair_t auth_ephemeral_kp;
-  hs_descriptor_t *desc = hs_helper_build_hs_desc_impl(0, signing_kp);
+  hs_descriptor_t *desc = hs_helper_build_hs_desc_impl(0, signing_kp, 42);
   hs_desc_authorized_client_t *desc_client;
 
   /* The number of client authorized auth has tobe a multiple of

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2020, The Tor Project, Inc. */
+/* Copyright (c) 2016-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -780,7 +780,7 @@ new_protocol_run(time_t valid_after)
     sr_compute_srv();
   }
 
-  /* Prepare for the new protocol run by reseting the state */
+  /* Prepare for the new protocol run by resetting the state */
   reset_state_for_new_protocol_run(valid_after);
 
   /* Do some logging */

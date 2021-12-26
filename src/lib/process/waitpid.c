@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -113,7 +113,7 @@ clear_waitpid_callback(waitpid_callback_t *ent)
   tor_free(ent);
 }
 
-/** Helper: find the callack for <b>pid</b>; if there is one, run it,
+/** Helper: find the callback for <b>pid</b>; if there is one, run it,
  * reporting the exit status as <b>status</b>. */
 static void
 notify_waitpid_callback_by_pid(pid_t pid, int status)

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -19,6 +19,10 @@
 edge_connection_t *TO_EDGE_CONN(connection_t *);
 entry_connection_t *TO_ENTRY_CONN(connection_t *);
 entry_connection_t *EDGE_TO_ENTRY_CONN(edge_connection_t *);
+
+const edge_connection_t *CONST_TO_EDGE_CONN(const connection_t *);
+const entry_connection_t *CONST_TO_ENTRY_CONN(const connection_t *);
+const entry_connection_t *CONST_EDGE_TO_ENTRY_CONN(const edge_connection_t *);
 
 #define EXIT_CONN_STATE_MIN_ 1
 /** State for an exit connection: waiting for response from DNS farm. */
@@ -93,6 +97,8 @@ void connection_edge_end_close(edge_connection_t *conn, uint8_t reason);
 int connection_edge_flushed_some(edge_connection_t *conn);
 int connection_edge_finished_flushing(edge_connection_t *conn);
 int connection_edge_finished_connecting(edge_connection_t *conn);
+
+void connection_entry_set_controller_wait(entry_connection_t *conn);
 
 void connection_ap_about_to_close(entry_connection_t *edge_conn);
 void connection_exit_about_to_close(edge_connection_t *edge_conn);

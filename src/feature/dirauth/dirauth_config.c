@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -77,8 +77,8 @@ options_validate_dirauth_mode(const or_options_t *old_options,
     return 0;
 
   /* confirm that our address isn't broken, so we can complain now */
-  uint32_t tmp;
-  if (resolve_my_address(LOG_WARN, options, &tmp, NULL, NULL) < 0)
+  tor_addr_t tmp;
+  if (!find_my_address(options, AF_INET, LOG_WARN, &tmp, NULL, NULL))
     REJECT("Failed to resolve/guess local address. See logs for details.");
 
   if (!options->ContactInfo && !options->TestingTorNetwork)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2020, The Tor Project, Inc. */
+/* Copyright (c) 2009-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -129,8 +129,9 @@ microdesc_note_outdated_dirserver(const char *relay_digest)
   tor_assert(outdated_dirserver_list);
 
   /* If the list grows too big, clean it up */
-  if (BUG(smartlist_len(outdated_dirserver_list) >
-          TOO_MANY_OUTDATED_DIRSERVERS)) {
+  if (smartlist_len(outdated_dirserver_list) > TOO_MANY_OUTDATED_DIRSERVERS) {
+    log_info(LD_GENERAL,"Too many outdated directory servers (%d). Resetting.",
+             smartlist_len(outdated_dirserver_list));
     microdesc_reset_outdated_dirservers_list();
   }
 

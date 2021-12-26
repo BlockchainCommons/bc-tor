@@ -1,9 +1,9 @@
-/* Copyright (c) 2017-2020, The Tor Project, Inc. */
+/* Copyright (c) 2017-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
  * \file hs_cell.h
- * \brief Header file containing cell data for the whole HS subsytem.
+ * \brief Header file containing cell data for the whole HS subsystem.
  **/
 
 #ifndef TOR_HS_CELL_H

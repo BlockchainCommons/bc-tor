@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -82,7 +82,7 @@ namemap_fmt_name(const namemap_t *map, unsigned id)
 
 /**
  * Helper: As namemap_get_id(), but requires that <b>name</b> is
- * <b>namelen</b> charaters long, and that <b>namelen</b> is no more than
+ * <b>namelen</b> characters long, and that <b>namelen</b> is no more than
  * MAX_NAMEMAP_NAME_LEN.
  */
 static unsigned

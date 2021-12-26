@@ -1,9 +1,9 @@
-/* Copyright (c) 2016-2020, The Tor Project, Inc. */
+/* Copyright (c) 2016-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
  * \file hs_service.h
- * \brief Header file containing service data for the HS subsytem.
+ * \brief Header file containing service data for the HS subsystem.
  **/
 
 #ifndef TOR_HS_SERVICE_H
@@ -11,12 +11,13 @@
 
 #include "lib/crypt_ops/crypto_curve25519.h"
 #include "lib/crypt_ops/crypto_ed25519.h"
-#include "feature/hs_common/replaycache.h"
+#include "lib/metrics/metrics_store.h"
 
 #include "feature/hs/hs_common.h"
 #include "feature/hs/hs_descriptor.h"
 #include "feature/hs/hs_ident.h"
 #include "feature/hs/hs_intropoint.h"
+#include "feature/hs_common/replaycache.h"
 
 /* Trunnel */
 #include "trunnel/hs/cell_establish_intro.h"
@@ -33,6 +34,12 @@
 #define HS_SERVICE_NEXT_UPLOAD_TIME_MIN (60 * 60)
 /** Maximum interval for uploading next descriptor (in seconds). */
 #define HS_SERVICE_NEXT_UPLOAD_TIME_MAX (120 * 60)
+
+/** Collected metrics for a specific service. */
+typedef struct hs_service_metrics_t {
+  /** Store containing the metrics values. */
+  metrics_store_t *store;
+} hs_service_metrics_t;
 
 /** Service side introduction point. */
 typedef struct hs_service_intro_point_t {
@@ -114,9 +121,9 @@ typedef struct hs_service_intropoints_t {
  *
  * Mutable elements are initialized when we build the descriptor but they are
  * also altered during the lifetime of the descriptor. They could be
- * _refreshed_ everytime we upload the descriptor (which happens multiple times
- * over the lifetime of the descriptor), or through periodic events. We do this
- * for elements like the descriptor revision counter and various
+ * _refreshed_ every time we upload the descriptor (which happens multiple
+ * times over the lifetime of the descriptor), or through periodic events. We
+ * do this for elements like the descriptor revision counter and various
  * certificates. See refresh_service_descriptor() and
  * update_service_descriptor_intro_points().
  */
@@ -203,7 +210,7 @@ typedef struct hs_service_config_t {
   /** Have we explicitly set HiddenServiceVersion? */
   unsigned int hs_version_explicitly_set : 1;
 
-  /** List of rend_service_port_config_t */
+  /** List of hs_port_config_t */
   smartlist_t *ports;
 
   /** Path on the filesystem where the service persistent data is stored. NULL
@@ -222,9 +229,6 @@ typedef struct hs_service_config_t {
   /** How many introduction points this service has. Specified by
    * HiddenServiceNumIntroductionPoints option. */
   unsigned int num_intro_points;
-
-  /** True iff the client auth is enabled. */
-  unsigned int is_client_auth_enabled : 1;
 
   /** List of hs_service_authorized_client_t's of clients that may access this
    * service. Specified by HiddenServiceAuthorizeClient option. */
@@ -292,7 +296,7 @@ typedef struct hs_service_state_t {
 /** Representation of a service running on this tor instance. */
 typedef struct hs_service_t {
   /** Onion address base32 encoded and NUL terminated. We keep it for logging
-   * purposes so we don't have to build it everytime. */
+   * purposes so we don't have to build it every time. */
   char onion_address[HS_SERVICE_ADDR_LEN_BASE32 + 1];
 
   /** Hashtable node: use to look up the service by its master public identity
@@ -312,6 +316,9 @@ typedef struct hs_service_t {
   hs_service_descriptor_t *desc_current;
   /** Next descriptor. */
   hs_service_descriptor_t *desc_next;
+
+  /** Metrics. */
+  hs_service_metrics_t metrics;
 } hs_service_t;
 
 /** For the service global hash map, we define a specific type for it which
@@ -335,6 +342,7 @@ void hs_service_free_(hs_service_t *service);
  **/
 #define hs_service_free(s) FREE_AND_NULL(hs_service_t, hs_service_free_, (s))
 
+hs_service_t *hs_service_find(const ed25519_public_key_t *ident_pk);
 MOCK_DECL(unsigned int, hs_service_get_num_services,(void));
 void hs_service_stage_services(const smartlist_t *service_list);
 int hs_service_load_all_keys(void);
@@ -343,6 +351,7 @@ void hs_service_lists_fnames_for_sandbox(smartlist_t *file_list,
                                          smartlist_t *dir_list);
 int hs_service_set_conn_addr_port(const origin_circuit_t *circ,
                                   edge_connection_t *conn);
+smartlist_t *hs_service_get_metrics_stores(void);
 
 void hs_service_map_has_changed(void);
 void hs_service_dir_info_changed(void);
@@ -360,7 +369,8 @@ char *hs_service_lookup_current_desc(const ed25519_public_key_t *pk);
 hs_service_add_ephemeral_status_t
 hs_service_add_ephemeral(ed25519_secret_key_t *sk, smartlist_t *ports,
                          int max_streams_per_rdv_circuit,
-                         int max_streams_close_circuit, char **address_out);
+                         int max_streams_close_circuit,
+                         smartlist_t *auth_clients_v3, char **address_out);
 int hs_service_del_ephemeral(const char *address);
 
 /* Used outside of the HS subsystem by the control port command HSPOST. */
@@ -374,6 +384,21 @@ hs_circuit_id_protocol_t
 hs_service_exports_circuit_id(const ed25519_public_key_t *pk);
 
 void hs_service_dump_stats(int severity);
+void hs_service_circuit_cleanup_on_close(const circuit_t *circ);
+
+hs_service_authorized_client_t *
+parse_authorized_client_key(const char *key_str, int severity);
+
+void
+service_authorized_client_free_(hs_service_authorized_client_t *client);
+#define service_authorized_client_free(c) \
+  FREE_AND_NULL(hs_service_authorized_client_t, \
+                           service_authorized_client_free_, (c))
+
+/* Config options. */
+int hs_service_allow_non_anonymous_connection(const or_options_t *options);
+int hs_service_non_anonymous_mode_enabled(const or_options_t *options);
+int hs_service_reveal_startup_time(const or_options_t *options);
 
 #ifdef HS_SERVICE_PRIVATE
 
@@ -438,12 +463,6 @@ STATIC void service_descriptor_free_(hs_service_descriptor_t *desc);
 #define service_descriptor_free(d) \
   FREE_AND_NULL(hs_service_descriptor_t, \
                            service_descriptor_free_, (d))
-
-STATIC void
-service_authorized_client_free_(hs_service_authorized_client_t *client);
-#define service_authorized_client_free(c) \
-  FREE_AND_NULL(hs_service_authorized_client_t, \
-                           service_authorized_client_free_, (c))
 
 STATIC int
 write_address_to_file(const hs_service_t *service, const char *fname_);

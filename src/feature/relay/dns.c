@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -63,6 +63,7 @@
 #include "feature/relay/dns.h"
 #include "feature/relay/router.h"
 #include "feature/relay/routermode.h"
+#include "feature/stats/rephist.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "lib/evloop/compat_libevent.h"
 #include "lib/sandbox/sandbox.h"
@@ -211,20 +212,11 @@ evdns_log_cb(int warn, const char *msg)
   tor_log(severity, LD_EXIT, "eventdns: %s", msg);
 }
 
-/** Helper: passed to eventdns.c as a callback so it can generate random
- * numbers for transaction IDs and 0x20-hack coding. */
-static void
-dns_randfn_(char *b, size_t n)
-{
-  crypto_rand(b,n);
-}
-
 /** Initialize the DNS subsystem; called by the OR process. */
 int
 dns_init(void)
 {
   init_cache_map();
-  evdns_set_random_bytes_fn(dns_randfn_);
   if (server_mode(get_options())) {
     int r = configure_nameservers(1);
     return r;
@@ -1648,6 +1640,10 @@ evdns_callback(int result, char type, int count, int ttl, void *addresses,
     dns_found_answer(string_address, orig_query_type,
                      result, &addr, hostname, ttl);
 
+  /* The result can be changed within this function thus why we note the result
+   * at the end. */
+  rep_hist_note_dns_query(type, result);
+
   tor_free(arg_);
 }
 
@@ -1691,7 +1687,7 @@ launch_one_resolve(const char *address, uint8_t query_type,
       log_warn(LD_BUG, "Called with PTR query and unexpected address family");
     break;
   default:
-    log_warn(LD_BUG, "Called with unexpectd query type %d", (int)query_type);
+    log_warn(LD_BUG, "Called with unexpected query type %d", (int)query_type);
     break;
   }
 

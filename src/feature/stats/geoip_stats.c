@@ -1,4 +1,4 @@
-/* Copyright (c) 2007-2020, The Tor Project, Inc. */
+/* Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -196,6 +196,8 @@ clientmap_entry_new(geoip_client_action_t action, const tor_addr_t *addr,
   if (transport_name) {
     entry->transport_name = tor_strdup(transport_name);
   }
+  /* Initialize the DoS object. */
+  dos_geoip_entry_init(entry);
 
   /* Allocated and initialized, note down its size for the OOM handler. */
   geoip_increment_client_history_cache_size(clientmap_entry_size(entry));
@@ -774,7 +776,7 @@ geoip_get_dirreq_history(dirreq_type_t type)
  *
  * Store a newly allocated comma-separated string in <a>ipver_str</a>
  * containing entries for clients connecting over IPv4 and IPv6. The
- * format is family=num where num is the nubmer of IPs we've seen
+ * format is family=num where num is the number of IPs we've seen
  * connecting over that protocol family, and family is 'v4' or 'v6'.
  *
  * Return 0 on success and -1 if we're missing geoip data. */

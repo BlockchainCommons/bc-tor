@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -46,7 +46,7 @@ void buf_add_printf(buf_t *buf, const char *format, ...)
 void buf_add_vprintf(buf_t *buf, const char *format, va_list args)
   CHECK_PRINTF(2, 0);
 int buf_move_to_buf(buf_t *buf_out, buf_t *buf_in, size_t *buf_flushlen);
-void buf_move_all(buf_t *buf_out, buf_t *buf_in);
+size_t buf_move_all(buf_t *buf_out, buf_t *buf_in);
 void buf_peek(const buf_t *buf, char *string, size_t string_len);
 void buf_drain(buf_t *buf, size_t n);
 int buf_get_bytes(buf_t *buf, char *string, size_t string_len);

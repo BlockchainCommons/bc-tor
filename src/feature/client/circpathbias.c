@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -683,7 +683,7 @@ pathbias_mark_use_success(origin_circuit_t *circ)
 }
 
 /**
- * If a stream ever detatches from a circuit in a retriable way,
+ * If a stream ever detaches from a circuit in a retriable way,
  * we need to mark this circuit as still needing either another
  * successful stream, or in need of a probe.
  *

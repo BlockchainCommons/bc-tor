@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -130,13 +130,13 @@ authority_cert_parse_from_string(const char *s, size_t maxlen,
     tor_assert(tok->n_args);
     /* XXX++ use some tor_addr parse function below instead. -RD */
     if (tor_addr_port_split(LOG_WARN, tok->args[0], &address,
-                            &cert->dir_port) < 0 ||
+                            &cert->ipv4_dirport) < 0 ||
         tor_inet_aton(address, &in) == 0) {
       log_warn(LD_DIR, "Couldn't parse dir-address in certificate");
       tor_free(address);
       goto err;
     }
-    cert->addr = ntohl(in.s_addr);
+    tor_addr_from_in(&cert->ipv4_addr, &in);
     tor_free(address);
   }
 

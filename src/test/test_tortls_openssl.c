@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2020, The Tor Project, Inc. */
+/* Copyright (c) 2010-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define TORTLS_PRIVATE
@@ -279,8 +279,7 @@ test_tortls_log_one_error(void *ignored)
 
   mock_clean_saved_logs();
   tor_tls_log_one_error(tls, ERR_PACK(1, 2, 3), LOG_WARN, 0, NULL);
-  expect_log_msg("TLS error with 127.hello: "
-            "BN lib (in unknown library:(null):---)\n");
+  expect_log_msg_containing("TLS error with 127.hello");
 
   mock_clean_saved_logs();
   tor_tls_log_one_error(tls, ERR_PACK(1, 2, SSL_R_HTTP_REQUEST),
@@ -1139,25 +1138,6 @@ test_tortls_unblock_renegotiation(void *ignored)
              SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
 
  done:
-  tor_free(tls->ssl);
-  tor_free(tls);
-}
-#endif /* !defined(OPENSSL_OPAQUE) */
-
-#ifndef OPENSSL_OPAQUE
-static void
-test_tortls_assert_renegotiation_unblocked(void *ignored)
-{
-  (void)ignored;
-  tor_tls_t *tls;
-
-  tls = tor_malloc_zero(sizeof(tor_tls_t));
-  tls->ssl = tor_malloc_zero(sizeof(SSL));
-  tor_tls_unblock_renegotiation(tls);
-  tor_tls_assert_renegotiation_unblocked(tls);
-  /* No assertion here - this test will fail if tor_assert is turned on
-   * and things are bad. */
-
   tor_free(tls->ssl);
   tor_free(tls);
 }
@@ -2225,7 +2205,6 @@ struct testcase_t tortls_openssl_tests[] = {
   INTRUSIVE_TEST_CASE(server_info_callback, 0),
   LOCAL_TEST_CASE(get_write_overhead_ratio, TT_FORK),
   LOCAL_TEST_CASE(is_server, 0),
-  INTRUSIVE_TEST_CASE(assert_renegotiation_unblocked, 0),
   INTRUSIVE_TEST_CASE(block_renegotiation, 0),
   INTRUSIVE_TEST_CASE(unblock_renegotiation, 0),
   INTRUSIVE_TEST_CASE(set_renegotiate_callback, 0),

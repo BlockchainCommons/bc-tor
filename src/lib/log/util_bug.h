@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -248,6 +248,17 @@
                 IF_BUG_ONCE_VARNAME__(__LINE__))
 
 #endif /* defined(ALL_BUGS_ARE_FATAL) || ... */
+
+/**
+ * Use this macro after a nonfatal assertion, and before a case statement
+ * where you would want to fall through.
+ */
+#ifdef ALL_BUGS_ARE_FATAL
+#define FALLTHROUGH_UNLESS_ALL_BUGS_ARE_FATAL \
+  abort()
+#else
+#define FALLTHROUGH_UNLESS_ALL_BUGS_ARE_FATAL FALLTHROUGH
+#endif /* defined(ALL_BUGS_ARE_FATAL) */
 
 /** In older code, we used tor_fragile_assert() to mark optional failure
  * points. At these points, we could make some debug builds fail.

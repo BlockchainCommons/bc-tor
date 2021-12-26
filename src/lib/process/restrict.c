@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2020, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -44,7 +44,7 @@ tor_disable_debugger_attach(void)
 {
   int r = -1;
   log_debug(LD_CONFIG,
-            "Attemping to disable debugger attachment to Tor for "
+            "Attempting to disable debugger attachment to Tor for "
             "unprivileged users.");
 #if defined(__linux__) && defined(HAVE_SYS_PRCTL_H) \
   && defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)

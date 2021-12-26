@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2020, The Tor Project, Inc. */
+/* Copyright (c) 2018-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -442,7 +442,7 @@ test_log_logistic(void *arg)
     /* x is a point in the support of the LogLogistic distribution */
     double x;
     /* 'p' is the probability that a random variable X for a given LogLogistic
-     * probability ditribution will take value less-or-equal to x */
+     * probability distribution will take value less-or-equal to x */
     double p;
     /* 'np' is the probability that a random variable X for a given LogLogistic
      * probability distribution will take value greater-or-equal to x. */
@@ -591,7 +591,7 @@ test_weibull(void *arg)
     /* x is a point in the support of the Weibull distribution */
     double x;
     /* 'p' is the probability that a random variable X for a given Weibull
-     * probability ditribution will take value less-or-equal to x */
+     * probability distribution will take value less-or-equal to x */
     double p;
     /* 'np' is the probability that a random variable X for a given Weibull
      * probability distribution will take value greater-or-equal to x. */
